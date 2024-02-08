@@ -1,0 +1,18 @@
+apiVersion: kubescheduler.config.k8s.io/v1
+kind: KubeSchedulerConfiguration
+clientConnection:
+  kubeconfig: "/etc/kubernetes/scheduler.conf"
+profiles:
+- schedulerName: default-scheduler
+  plugins:
+    score:
+      enabled:
+      - name: NetworkTraffic
+      disabled:
+      - name: "*"
+  pluginConfig:
+  - name: NetworkTraffic
+    args:
+      prometheusAddress: "http://10.96.105.208:9090"
+      networkInterface: "eth0"
+      timeRangeInMinutes: 3
