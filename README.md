@@ -26,6 +26,14 @@ A questo punto l'immagine viene caricata sui nodi del cluster affinchè sia pres
 
 In alternativa può essere caricata in DockerHub se si modifica il file di configurazione kube-scheduler.yaml indicando al nodo master da dove scaricare l'immagine.
 
+## Model
+
+la directory model contiene l'agente di RL cleanrl
+
+## Venv
+
+contiene il custom environment realizzato per poter usare l'agente all'interno del cluster kind
+
 ## Configurazione scheduler nel master node
 Dopo aver creato automaticamente il cluster, si aggiunge la configurazione del nuovo scheduler nel nodo master (control-plane del cluster):
 - `etc/kubernetes/manifests`: copiare il file kube-scheduler.yaml contenente la nuova configurazione del pod scheduler creato a partire dall'immagine creata localmente
