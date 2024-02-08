@@ -13,7 +13,7 @@ Il cluster realizzato con Kind contiene 4 nodi ed è stato creato tramite file k
 
 ## Configurazione Prometheus con node-exporter
 
-All'interno del cluster prometheus viene usato per fornire metriche al modello dello scheduler e viene configurato seguendo:
+All'interno del cluster prometheus viene usato per fornire metriche al modello dello scheduler e viene configurato tramite node exporter aggiungendo delle modifiche per poter funzionare su un cluster kind come indicato su [kind-fix missing prometheus operator targets](https://medium.com/@charled.breteche/kind-fix-missing-prometheus-operator-targets-1a1ff5d8c8ad)
 
 
 ## Scheduler 
@@ -25,6 +25,14 @@ A questo punto l'immagine viene caricata sui nodi del cluster affinchè sia pres
 ``` kind load docker-image --name  vbeta3 localhost:5000/scheduler-plugins/kube-scheduler:latest  ```
 
 In alternativa può essere caricata in DockerHub se si modifica il file di configurazione kube-scheduler.yaml indicando al nodo master da dove scaricare l'immagine.
+
+## Model
+
+la directory model contiene l'agente di RL cleanrl
+
+## Venv
+
+contiene il custom environment realizzato per poter usare l'agente all'interno del cluster kind
 
 ## Configurazione scheduler nel master node
 Dopo aver creato automaticamente il cluster, si aggiunge la configurazione del nuovo scheduler nel nodo master (control-plane del cluster):
