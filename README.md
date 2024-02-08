@@ -28,11 +28,12 @@ In alternativa può essere caricata in DockerHub se si modifica il file di confi
 
 ## Model
 
-la directory model contiene l'agente di RL cleanrl
+La directory model contiene l'agente di RL [cleanrl](https://docs.cleanrl.dev/) e il file `main.py` necessario per ottenere i suggerimenti dal modello nel plugin.
 
 ## Venv
 
-contiene il custom environment realizzato per poter usare l'agente all'interno del cluster kind
+Contiene il custom environment realizzato per poter usare l'agente all'interno del cluster Kind. In particolare è stata modificata la libreria gymnasium contenente il nuovo environment `scheduler.py` situato in:
+`venv/lib/python3.9/site-packages/gymnasium/envs/classic_control`
 
 ## Configurazione scheduler nel master node
 Dopo aver creato automaticamente il cluster, si aggiunge la configurazione del nuovo scheduler nel nodo master (control-plane del cluster):
