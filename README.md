@@ -47,7 +47,7 @@ Osservando i log dello scheduler è possibile osservarne il comportamento quando
 
  Si ottiene un output simile per cui i pod sono schedulati sul nodo worker con score maggiore.
 
-![Screenshot](./Screenshot.jpg)
+![Screenshot](./img/Screenshot.jpg)
  
  
 
