@@ -13,7 +13,7 @@ Il cluster realizzato con Kind contiene 4 nodi ed è stato creato tramite file k
 
 ## Configurazione Prometheus con node-exporter
 
-All'interno del cluster prometheus viene usato per fornire metriche al modello dello scheduler e viene configurato seguendo:
+All'interno del cluster prometheus viene usato per fornire metriche al modello dello scheduler e viene configurato tramite node exporter aggiungendo delle modifiche per poter funzionare su un cluster kind come indicato su [kind-fix missing prometheus operator targets](https://medium.com/@charled.breteche/kind-fix-missing-prometheus-operator-targets-1a1ff5d8c8ad)
 
 
 ## Scheduler 
