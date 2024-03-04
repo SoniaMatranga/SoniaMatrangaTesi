@@ -7,7 +7,7 @@ L'algoritmo di reinforcement-learning usato nel plugin valuta dinamicamente le r
 
 ## Cluster Kind
 
-Il cluster realizzato con Kind contiene 4 nodi ed è stato creato tramite file kind-config.yaml dove vanno configurati correttamente i path di model e venv:
+Il cluster realizzato con Kind contiene 4 nodi ed è stato creato tramite file [kind-config.yaml](kind-config.yaml) dove vanno configurati correttamente i path di model e venv:
 
    ```kind create cluster --name vbeta3 --config kind-config.yaml ``` 
 
@@ -18,7 +18,7 @@ All'interno del cluster prometheus viene usato per fornire metriche al modello d
 
 ## Scheduler 
 
-La nuova immagine dello scheduler da creare nel cluster viene creata localmente tramite i file della directory scheduler-plugins, contenente il codice dei plugins contenuti nel repository [scheduler-plugins](https://github.com/kubernetes-sigs/scheduler-plugins) ai quali è stato aggiunto il custom plugin pNetworkTraffic, che effettua lo scoring in base ai suggerimenti del modello di reinforcement learning.
+La nuova immagine dello scheduler da creare nel cluster viene creata localmente tramite i file della directory [scheduler-plugins](scheduler-plugins), contenente il codice dei plugins contenuti nel repository [scheduler-plugins](https://github.com/kubernetes-sigs/scheduler-plugins) ai quali è stato aggiunto il custom plugin NetworkTraffic, che effettua lo scoring in base ai suggerimenti del modello di reinforcement learning.
 Viene quindi creata l'immagine locale tramite il comando `make local-image` che andrà a creare una nuova immagine docker `localhost:5000/scheduler-plugins/kube-scheduler:latest`.
 A questo punto l'immagine viene caricata sui nodi del cluster affinchè sia presente localmente nel nodo:
 
@@ -34,6 +34,10 @@ La directory model contiene l'agente di RL [cleanrl](https://docs.cleanrl.dev/) 
 
 Contiene il custom environment realizzato per poter usare l'agente all'interno del cluster Kind. In particolare è stata modificata la libreria gymnasium contenente il nuovo environment `scheduler.py` situato in:
 `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control`
+
+## Architettura di comunicazione
+
+![Architettura](./img/Architettura.jpg)
 
 ## Configurazione scheduler nel master node
 Dopo aver creato automaticamente il cluster, si aggiunge la configurazione del nuovo scheduler nel nodo master (control-plane del cluster):
