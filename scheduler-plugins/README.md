@@ -9,7 +9,7 @@ Questo repository fornisce plugin di schedulazione che vengono utilizzati nelle 
 ## Plugins
 
 Il kube-scheduler include la seguente lista di plugins. Questi possono essere configurati creando o modificando gli
-[scheduler profiles](https://kubernetes.io/docs/reference/scheduling/config/#multiple-profiles), come fatto nel file [networktraffic-config.yaml]
+[scheduler profiles](https://kubernetes.io/docs/reference/scheduling/config/#multiple-profiles), come fatto nel file [networktraffic-config.yaml](../networktraffic-config.yaml)
 
 * [Capacity Scheduling](pkg/capacityscheduling/README.md)
 * [Coscheduling](pkg/coscheduling/README.md)
