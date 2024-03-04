@@ -2,7 +2,7 @@
 
 # Scheduler Plugins
 
-Repository basato su [scheduler plugins](https://github.com/kubernetes-sigs/scheduler-plugins) basato su [scheduler framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/).
+Repository che estende il porgetto originale [scheduler plugins](https://github.com/kubernetes-sigs/scheduler-plugins) basato su [scheduler framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/).
 
 Questo repository fornisce plugin di schedulazione che vengono utilizzati nelle grandi aziende. Questi plugin possono essere incorporati come librerie SDK Golang o utilizzati direttamente tramite immagini pre-compilate o grafici Helm. Inoltre, questo repository incorpora le migliori pratiche e utilità per comporre un plugin di schedulazione custom di alta qualità.
 
