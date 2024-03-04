@@ -32,7 +32,7 @@ In alternativa può essere caricata in DockerHub se si modifica il file di confi
 
 ## Elementi chiave
 
-L'immagine base dello scheduler è stata modificata da `alpine:3.16` in `debian:11` per poter eseguire il modello RL all'interno dello scheduler. Nel [dockerfile](bulid/scheduler/Dockerfile) dello scheduler inoltre è configurata l'installazione delle librerie per eseguire l'agente e viene attivato il venv.
+L'immagine base dello scheduler è stata modificata da `alpine:3.16` in `debian:11` per poter eseguire il modello RL all'interno dello scheduler. Nel [dockerfile](build/scheduler/Dockerfile) dello scheduler inoltre è configurata l'installazione delle librerie per eseguire l'agente e viene attivato il venv.
 
 La registrazione del custom plugin avviene in  `scheduler-plugins/cmd/sheduler/main.go` che inoltre avvia il modello e registra il custom plugin per lo scheduler.
 In particolare per registrare il nuovo plugin basta aggiungere nel file:
