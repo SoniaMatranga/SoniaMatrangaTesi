@@ -32,11 +32,12 @@ To test the scheduler, you need to follow all the steps outlined below:
 
 3. **Configure Prometheus with Node Exporter**:
 
-   Install Prometheus configured with Node Exporter into the cluster to provide metrics to the RL model.
+   Install [Prometheus configured with Node Exporter](https://github.com/prometheus-community/helm-charts/tree/main/charts/prometheus-node-exporter) into the cluster to provide metrics to the RL model.
    ```
+   kubectl create namespace monitoring
    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
    helm repo update
-   helm install [RELEASE_NAME] prometheus-community/prometheus-node-exporter
+   helm install prometheus prometheus-community/prometheus-node-exporter -n monitoring
    ```
    Follow the steps outlined in the article [kind-fix missing prometheus operator targets](https://medium.com/@charled.breteche/kind-fix-missing-prometheus-operator-targets-1a1ff5d8c8ad) to let prometheus work on a kind cluster.
 
