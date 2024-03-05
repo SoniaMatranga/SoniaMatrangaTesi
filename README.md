@@ -1,19 +1,36 @@
 
 # "Orchestrating tasks in the cloud continuum with reinforcement learning"
-### Tesista: s302948 MATRANGA SONIA 
+### s302948 MATRANGA SONIA 
 
-In questa tesi viene proposto e sviluppato un nuovo approccio alla schedulazione all’interno dei cluster Kubernetes. In particolare, lo scheduler proposto sfrutta un algoritmo di apprendimento per rinforzo (reinforcement-learning) di tipo DQN integrando un custom plugin utilizzato nella fase di scoring della catena di schedulazione, al fine di ottimizzare la distribuzione del load sui nodi disponibili con un approccio innovativo e intelligente.
-L'algoritmo di reinforcement-learning usato nel plugin valuta dinamicamente le risorse disponibili sui nodi del cluster e, tramite rinforzo, impara a gestirle assegnando ad ogni nodo uno score che riflette la sua idoneità per ospitare nuovi pod. Questa valutazione intelligente fornisce dunque uno strumento decisionale ma anche predittivo al sistema di schedulazione, che nel tempo può quindi prendere decisioni informate e sempre migliori sulla distribuzione ottimale dei nuovi carichi di lavoro. L'implementazione è stata testata su un ambiente Kubernetes Kind.
+This thesis proposes and develops a new approach to scheduling within Kubernetes clusters. In particular, the proposed scheduler leverages a reinforcement-learning algorithm of type DQN by integrating a custom plugin used in the scoring phase of the scheduling chain, in order to optimize load distribution across available nodes with an innovative and intelligent approach.
 
-## Cluster Kind
+The reinforcement-learning algorithm used in the plugin dynamically evaluates the available resources on the cluster nodes and, through reinforcement, learns to manage them by assigning a score to each node that reflects its suitability for hosting new pods. This intelligent evaluation thus provides a decision-making but also predictive tool to the scheduling system, which over time can make informed and increasingly better decisions about the optimal distribution of new workloads. The implementation has been tested in a Kind Kubernetes environment.
 
-Il cluster realizzato con Kind contiene 4 nodi ed è stato creato tramite file [kind-config.yaml](kind-config.yaml) dove vanno configurati correttamente i path di model e venv:
+## Architecture
 
-   ```kind create cluster --name vbeta3 --config kind-config.yaml ``` 
+In the proposed solution, there are four fundamental communication units:
 
-## Configurazione Prometheus con node-exporter
+- Plugin: It intercepts the scoring phase and intervenes by requesting scheduling suggestions from the RL model, leveraging the exposed APIs.
+- Suggestions server: It exposes the APIs to obtain scheduling suggestions.
+- RL Model: It utilizes node metrics obtained from Prometheus to suggest on which node the new pod should be scheduled.
+- Prometheus: It exposes various metrics collected on the nodes.
 
-All'interno del cluster prometheus viene usato per fornire metriche al modello dello scheduler e viene configurato tramite node exporter aggiungendo delle modifiche per poter funzionare su un cluster kind come indicato su [kind-fix missing prometheus operator targets](https://medium.com/@charled.breteche/kind-fix-missing-prometheus-operator-targets-1a1ff5d8c8ad)
+![Architettura](./img/Architettura.jpg)
+
+The communication between these elements occurs during the scoring phase, although the plugin can be extended to work on other phases if the extensible APIs are modified.
+
+## Usage
+
+To test the scheduler, you need to follow all the steps outlined below:
+
+1. Setup Kind Cluster:
+Create a Kind cluster with 4 nodes using the configuration file [kind-config.yaml](kind-config.yaml), , where the paths of the model and venv need to be correctly configured. Execute it with:
+
+   ```kind create cluster --name vbeta3 --config kind-config.yaml ```
+
+2. Configure Prometheus with Node Exporter:
+Install Prometheus configured with Node Exporter into the cluster to provide metrics to the RL model. Follow the steps outlined in the article [kind-fix missing prometheus operator targets](https://medium.com/@charled.breteche/kind-fix-missing-prometheus-operator-targets-1a1ff5d8c8ad) to let prometheus work on a kind cluster.
+
 
 
 ## Scheduler 
@@ -34,10 +51,6 @@ La directory model contiene l'agente di RL [cleanrl](https://docs.cleanrl.dev/) 
 
 Contiene il custom environment realizzato per poter usare l'agente all'interno del cluster Kind. In particolare è stata modificata la libreria gymnasium contenente il nuovo environment `scheduler.py` situato in:
 `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control`
-
-## Architettura di comunicazione
-
-![Architettura](./img/Architettura.jpg)
 
 ## Configurazione scheduler nel master node
 Dopo aver creato automaticamente il cluster, si aggiunge la configurazione del nuovo scheduler nel nodo master (control-plane del cluster):
