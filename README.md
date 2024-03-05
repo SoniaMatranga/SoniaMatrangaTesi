@@ -58,7 +58,7 @@ To test the scheduler, you need to follow all the steps outlined below:
    make local-image
    kind load docker-image --name  vbeta3 localhost:5000/scheduler-plugins/kube-scheduler:latest
    ```
-   Alternatively, the image can be uploaded to DockerHub by modifying the kube-scheduler.yaml configuration file to specify to the master node from where to download the image, as it is set in spec section of [kube-scheduler.yaml](../kube-scheduler.yaml) configuration file.
+   Alternatively, the image can be uploaded to DockerHub by modifying the kube-scheduler.yaml configuration file to specify to the master node from where to download the image, as it is set in spec section of [kube-scheduler.yaml](kube-scheduler.yaml) configuration file.
 
 6. **Restart the control-plane**
    It is necessary to restart the control-plane and delete the scheduler pod to create the new scheduler with the correct configuration and the local image. The scheduler pod can be obtained if using kubectl with the command:
@@ -70,7 +70,7 @@ To test the scheduler, you need to follow all the steps outlined below:
 
 ## Scheduling Test
 
-The [nginx-deployment.yaml](../nginx-deployment.yaml) can be applyed to the cluster to test scheduling: 
+The [nginx-deployment.yaml](nginx-deployment.yaml) can be applyed to the cluster to test scheduling: 
    ```
    kubectl create -f nginx-deployment.yaml
    ```
