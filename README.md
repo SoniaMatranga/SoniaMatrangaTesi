@@ -23,43 +23,48 @@ The communication between these elements occurs during the scoring phase, althou
 
 To test the scheduler, you need to follow all the steps outlined below:
 
-1. Setup Kind Cluster:
-Create a Kind cluster with 4 nodes using the configuration file [kind-config.yaml](kind-config.yaml), , where the paths of the model and venv need to be correctly configured. Execute it with:
+1. **Setup Kind Cluster**:
 
-   ```kind create cluster --name vbeta3 --config kind-config.yaml ```
+   Create a Kind cluster with 4 nodes using the configuration file [kind-config.yaml](kind-config.yaml), , where the paths of the model and venv need to be correctly configured. Execute it with:
+   ```
+   kind create cluster --name vbeta3 --config kind-config.yaml
+   ```
 
-2. Configure Prometheus with Node Exporter:
-Install Prometheus configured with Node Exporter into the cluster to provide metrics to the RL model. Follow the steps outlined in the article [kind-fix missing prometheus operator targets](https://medium.com/@charled.breteche/kind-fix-missing-prometheus-operator-targets-1a1ff5d8c8ad) to let prometheus work on a kind cluster.
+3. **Configure Prometheus with Node Exporter**:
 
+   Install Prometheus configured with Node Exporter into the cluster to provide metrics to the RL model.
+   ```
+   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+   helm repo update
+   helm install [RELEASE_NAME] prometheus-community/prometheus-node-exporter
+   ```
+   Follow the steps outlined in the article [kind-fix missing prometheus operator targets](https://medium.com/@charled.breteche/kind-fix-missing-prometheus-operator-targets-1a1ff5d8c8ad) to let prometheus work on a kind cluster.
 
+4. **Configure custom scheduler on master node**:
 
-## Scheduler 
+    After automatically creating the cluster, it is needed to add the configuration of the new scheduler into the master node (control-plane of the cluster).
+   So, it's necessary to add files to the following paths:
+   - `etc/kubernetes/manifests`: Copy the [kube-scheduler.yaml](../kube-scheduler.yaml) file containing the new configuration of the scheduler pod that will be created locally.
+   - `etc/kubernetes`: Copy the [networktraffic-config.yaml](../networktraffic-config.yaml) file containing the configuration of the scheduler plugins, from which you can enable or disable default behaviors.
 
-La nuova immagine dello scheduler da creare nel cluster viene creata localmente tramite i file della directory [scheduler-plugins](scheduler-plugins), contenente il codice dei plugins contenuti nel repository [scheduler-plugins](https://github.com/kubernetes-sigs/scheduler-plugins) ai quali è stato aggiunto il custom plugin NetworkTraffic, che effettua lo scoring in base ai suggerimenti del modello di reinforcement learning.
-Viene quindi creata l'immagine locale tramite il comando `make local-image` che andrà a creare una nuova immagine docker `localhost:5000/scheduler-plugins/kube-scheduler:latest`.
-A questo punto l'immagine viene caricata sui nodi del cluster affinchè sia presente localmente nel nodo:
+5. **Build and Load Local Scheduler Image**:
 
-``` kind load docker-image --name  vbeta3 localhost:5000/scheduler-plugins/kube-scheduler:latest  ```
+    The new scheduler image to be created in the cluster should be generated locally using the files from the directory [scheduler-plugins](scheduler-plugins), which contains the code of the plugins from the repository [scheduler-plugins](https://github.com/kubernetes-sigs/scheduler-plugins) to which the custom plugin NetworkTraffic has been added. This plugin performs scoring based on the suggestions of the reinforcement learning model.
+   The command `make local-image` will generate a new Docker image `localhost:5000/scheduler-plugins/kube-scheduler:latest`.
+   At this point, the image is loaded onto the cluster nodes so that it is locally available on the node:
+   ```
+   make local-image
+   kind load docker-image --name  vbeta3 localhost:5000/scheduler-plugins/kube-scheduler:latest
+   ```
+   Alternatively, the image can be uploaded to DockerHub by modifying the kube-scheduler.yaml configuration file to specify to the master node from where to download the image, as it is set in spec section of [kube-scheduler.yaml](../kube-scheduler.yaml) configuration file.
 
-In alternativa può essere caricata in DockerHub se si modifica il file di configurazione kube-scheduler.yaml indicando al nodo master da dove scaricare l'immagine.
+6. **Restart the control-plane**
+   It is necessary to restart the control-plane and delete the scheduler pod to create the new scheduler with the correct configuration and the local image. The scheduler pod can be obtained if using kubectl with the command:
+   ```
+    kubectl get pods -n kube-system
+   ```
+   where the pod scheduler is named like `kube-scheduler-vbeta3-control-plane` .
 
-## Model
-
-La directory model contiene l'agente di RL [cleanrl](https://docs.cleanrl.dev/) e il file `main.py` necessario per ottenere i suggerimenti dal modello nel plugin.
-
-## Venv
-
-Contiene il custom environment realizzato per poter usare l'agente all'interno del cluster Kind. In particolare è stata modificata la libreria gymnasium contenente il nuovo environment `scheduler.py` situato in:
-`venv/lib/python3.9/site-packages/gymnasium/envs/classic_control`
-
-## Configurazione scheduler nel master node
-Dopo aver creato automaticamente il cluster, si aggiunge la configurazione del nuovo scheduler nel nodo master (control-plane del cluster):
-- `etc/kubernetes/manifests`: copiare il file kube-scheduler.yaml contenente la nuova configurazione del pod scheduler creato a partire dall'immagine creata localmente
-- `etc/kubernetes`: copiare i file networktraffic-config.yaml che contiene la configurazione dei plugin dello scheduler, da cui è possibile abilitare o disabilitare comportamenti di default
-
-é necessario riavviare il control-plane e cancellare il pod scheduler per creare il nuovo scheduler con la configurazione corretta e l'immagine locale. Il pod scheduler può essere ricavato se si usa kubectl con il comando:
-``` kubectl get pods -n kube-system ```
-dal quale tra i pod si ottiene anche `kube-scheduler-vbeta3-control-plane` che  è il pod scheduler.
 
 ## Test di funzionamento
 
@@ -74,6 +79,16 @@ Osservando i log dello scheduler è possibile osservarne il comportamento quando
  Si ottiene un output simile per cui i pod sono schedulati sul nodo worker con score maggiore.
 
 ![Screenshot](./img/Screenshot.jpg)
+
+
+## Model
+
+La directory model contiene l'agente di RL [cleanrl](https://docs.cleanrl.dev/) e il file `main.py` necessario per ottenere i suggerimenti dal modello nel plugin.
+
+## Venv
+
+Contiene il custom environment realizzato per poter usare l'agente all'interno del cluster Kind. In particolare è stata modificata la libreria gymnasium contenente il nuovo environment `scheduler.py` situato in:
+`venv/lib/python3.9/site-packages/gymnasium/envs/classic_control`
 
 
 ## File modificati
