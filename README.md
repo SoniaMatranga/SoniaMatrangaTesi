@@ -83,28 +83,27 @@ At this point an output like this will appear so that pods are scheduled on the 
 
 ## Key paths
 
-Directory model:
-- `model/cleanrl`: contiene tutti i file [cleanrl](https://docs.cleanrl.dev/) che vanno montati sul pod scheduler
-- `model/main.py`: contiene funzioni per esporre i suggerimenti dell'agente e per permettere la comunicazione tra il venv e prometheus
-- altri file usati nelle precedenti versioni e runs generata da cleanrl
+Model directory:
+- `model/cleanrl`: contains all files of [cleanrl](https://docs.cleanrl.dev/) that must be mounted on scheduler pod
+- `model/main.py`: contains functions to expose agent suggestions and to allow communication between venv and prometheus
+- other files used on previous versions 
 
-Directory scheduler-plugins:
-- `scheduler-plugins/bulid/scheduler/Dockerfile`: dockerfile dello scheduler dal quale configuro l'installazione delle librerie per eseguire l'agente e attivo il venv
-- `scheduler-plugins/cmd/sheduler/main.go`: avvia il modello e registra il custom plugin per lo scheduler
-- `scheduler-plugins/pkg/networktraffic/networktraffic.go`: file che definisce il custom plugin
-- `scheduler-plugins/pkg/networktraffic/prometheus.go`: funzioni di interazione tra custom plugine  prometheus nel caso in cui la comunicazione con l'agente dovesse fallire
-- sono presenti modifiche a versioni di librerie per far funzionare correttamente le repo
+Scheduler-plugins directory:
+- `scheduler-plugins/bulid/scheduler/Dockerfile`: scheduler dockerfile where it is configured the installation of new libraries to exec the mnodel and the venv is activated 
+- `scheduler-plugins/cmd/sheduler/main.go`: starts the model and registers the custom plugin for the scheduler
+- `scheduler-plugins/pkg/networktraffic/networktraffic.go`: defines the custom plugin
+- `scheduler-plugins/pkg/networktraffic/prometheus.go`:functions for interaction between the custom plugin and Prometheus in case communication with the agent fails. Additionally, there are changes to library versions to ensure the repositories work correctly
+See scheduler-plugins [README.md](scheduler-plugins/README.md) for more details.
 
-Directory venv:
-- `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/scheduling.py`: definizione dell'environment usato dall'agente dqn che si trova in model. Avvia anche app per visualizzare i grafici sull'agente.
-- `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/__init__.py`:per registrare il nuovo environment custom in gymnasium
-- `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/graph.py`: per gestire la creazione di grafici per valutare l'agente
+Venv directory:
+- `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/scheduling.py`: definition of the environment used by the DQN agent, which is located in the model. It also starts an app to visualize graphs on the agent.
+- `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/__init__.py`: registers the new custom environment in Gymnasium
+- `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/graph.py`: manages the creation of graphs to evaluate the agent
 
-
-File di configurazione:
-- `kind-config.yaml`: configurazione iniziale del cluster sul quale va aggiunto prometheus
-- `kube-scheduler.yaml`: configurazione del pod scheduler dove inserisco i volumi di pulgin, model e venv
-- `networktraffic-config`: file di configurazione del custom scheduler da dove è possibile abliltare e disabilitare plugins e comportamenti di default dello scheduler e dove viene passato come argomenti l'address di prometheus.
+Configuration files:
+- `kind-config.yaml`: Initial cluster configuration where Prometheus needs to be added
+- `kube-scheduler.yaml`: Configuration of the scheduler pod where volumes of plugins, model, and venv are inserted
+- `networktraffic-config`: Configuration file for the custom scheduler where plugins and default scheduler behaviors can be enabled or disabled. It passes Prometheus address as an argument.
 
  
  
