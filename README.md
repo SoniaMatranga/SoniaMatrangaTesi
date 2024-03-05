@@ -45,8 +45,8 @@ To test the scheduler, you need to follow all the steps outlined below:
 
     After automatically creating the cluster, it is needed to add the configuration of the new scheduler into the master node (control-plane of the cluster).
    So, it's necessary to add files to the following paths:
-   - `etc/kubernetes/manifests`: Copy the [kube-scheduler.yaml](../kube-scheduler.yaml) file containing the new configuration of the scheduler pod that will be created locally.
-   - `etc/kubernetes`: Copy the [networktraffic-config.yaml](../networktraffic-config.yaml) file containing the configuration of the scheduler plugins, from which you can enable or disable default behaviors.
+   - `etc/kubernetes/manifests`: Copy the [kube-scheduler.yaml](kube-scheduler.yaml) file containing the new configuration of the scheduler pod that will be created locally.
+   - `etc/kubernetes`: Copy the [networktraffic-config.yaml](networktraffic-config.yaml) file containing the configuration of the scheduler plugins, from which you can enable or disable default behaviors.
 
 5. **Build and Load Local Scheduler Image**:
 
