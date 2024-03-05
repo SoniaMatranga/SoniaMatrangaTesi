@@ -29,6 +29,7 @@ To test the scheduler, you need to follow all the steps outlined below:
    ```
    kind create cluster --name vbeta3 --config kind-config.yaml
    ```
+   It is important to notice that the control node will mount model and venv volumes, where the venv contains all the requirements requested by cleanrl repo.
 
 3. **Configure Prometheus with Node Exporter**:
 
