@@ -17,6 +17,8 @@ The kube-scheduler includes the following list of plugins. These can be configur
 * [Network-Aware Scheduling](pkg/networkaware/README.md)
 * [NetworkTraffic Scheduling](pkg/networktraffic/README.md)
 
+The networktraffic plugin is based on the [k8s creating a kube-scheduler plugin](https://medium.com/@juliorenner123/k8s-creating-a-kube-scheduler-plugin-8a826c486a1) guide.
+
 ## Usage
 
 The new scheduler image is created locally using the command `make local-image`, which will generate a new Docker image `localhost:5000/scheduler-plugins/kube-scheduler:latest`.
