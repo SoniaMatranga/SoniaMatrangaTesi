@@ -17,7 +17,7 @@ In the proposed solution, there are four fundamental communication units:
 
 ![Architettura](./img/Architettura.jpg)
 
-The communication between these elements occurs during the scoring phase, although the plugin can be extended to work on other phases if the extensible APIs are modified.
+The communication between these elements occurs during the scoring phase, although the plugin can be extended to work on other phases if the extensible APIs are used as indicated [here](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/#interfaces).
 
 ## Usage
 
@@ -66,32 +66,21 @@ To test the scheduler, you need to follow all the steps outlined below:
    where the pod scheduler is named like `kube-scheduler-vbeta3-control-plane` .
 
 
-## Test di funzionamento
+## Scheduling Test
 
-Il file nginx-deployment.yaml può essere eseguito per testare la schedulazione eseguendo:
-
-```kubectl create -f nginx-deployment.yaml ```
-
-Osservando i log dello scheduler è possibile osservarne il comportamento quando viene effettuata una nuova schedulazione:
-
- ```kubectl logs -f kube-scheduler-vbeta3-control-plane  -n kube-system | grep "NetworkTraffic ```
-
- Si ottiene un output simile per cui i pod sono schedulati sul nodo worker con score maggiore.
+The [nginx-deployment.yaml](../nginx-deployment.yaml) can be applyed to the cluster to test scheduling: 
+   ```
+   kubectl create -f nginx-deployment.yaml
+   ```
+Then, by observing scheduler logs it is possible to analyze the behavoiour when a new pod is scheduled:
+   ```
+   kubectl logs -f kube-scheduler-vbeta3-control-plane  -n kube-system | grep "NetworkTraffic
+   ```
+At this point an output like this will appear so that pods are scheduled on the worker node with maximum score.
 
 ![Screenshot](./img/Screenshot.jpg)
 
-
-## Model
-
-La directory model contiene l'agente di RL [cleanrl](https://docs.cleanrl.dev/) e il file `main.py` necessario per ottenere i suggerimenti dal modello nel plugin.
-
-## Venv
-
-Contiene il custom environment realizzato per poter usare l'agente all'interno del cluster Kind. In particolare è stata modificata la libreria gymnasium contenente il nuovo environment `scheduler.py` situato in:
-`venv/lib/python3.9/site-packages/gymnasium/envs/classic_control`
-
-
-## File modificati
+## Key paths
 
 Directory model:
 - `model/cleanrl`: contiene tutti i file [cleanrl](https://docs.cleanrl.dev/) che vanno montati sul pod scheduler
