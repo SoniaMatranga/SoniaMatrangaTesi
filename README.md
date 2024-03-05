@@ -93,8 +93,8 @@ Scheduler-plugins directory:
 - `scheduler-plugins/bulid/scheduler/Dockerfile`: scheduler dockerfile where it is configured the installation of new libraries to exec the mnodel and the venv is activated 
 - `scheduler-plugins/cmd/sheduler/main.go`: starts the model and registers the custom plugin for the scheduler
 - `scheduler-plugins/pkg/networktraffic/networktraffic.go`: defines the custom plugin
-- `scheduler-plugins/pkg/networktraffic/prometheus.go`:functions for interaction between the custom plugin and Prometheus in case communication with the agent fails. Additionally, there are changes to library versions to ensure the repositories work correctly
-See scheduler-plugins [README.md](scheduler-plugins/README.md) for more details.
+- `scheduler-plugins/pkg/networktraffic/prometheus.go`:functions for interaction between the custom plugin and Prometheus in case communication with the agent fails.
+-  Additionally, there are changes to library versions to ensure the repositories work correctly. See scheduler-plugins [README.md](scheduler-plugins/README.md) for more details.
 
 Venv directory:
 - `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/scheduling.py`: definition of the environment used by the DQN agent, which is located in the model. It also starts an app to visualize graphs on the agent.
