@@ -1,15 +1,12 @@
-[![Go Report Card](https://goreportcard.com/badge/kubernetes-sigs/scheduler-plugins)](https://goreportcard.com/report/kubernetes-sigs/scheduler-plugins) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/kubernetes-sigs/scheduler-plugins/blob/master/LICENSE)
-
 # Scheduler Plugins
 
-Repository che estende il progetto originale [scheduler plugins](https://github.com/kubernetes-sigs/scheduler-plugins) basato su [scheduler framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/).
+Repository extending the original [scheduler plugins](https://github.com/kubernetes-sigs/scheduler-plugins) project based on the [scheduler framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/).
 
-Questo repository fornisce plugin di schedulazione che vengono utilizzati nelle grandi aziende. Questi plugin possono essere incorporati come librerie SDK Golang o utilizzati direttamente tramite immagini pre-compilate o grafici Helm. Inoltre, questo repository incorpora le migliori pratiche e utilità per comporre un plugin di schedulazione custom di alta qualità.
+This repository provides scheduling plugins that are used in large enterprises. These plugins can be embedded as Golang SDK libraries or used directly through pre-built images or Helm charts. Additionally, this repository incorporates best practices and utilities for composing high-quality custom scheduling plugins.
 
 ## Plugins
 
-Il kube-scheduler include la seguente lista di plugins. Questi possono essere configurati creando o modificando gli
-[scheduler profiles](https://kubernetes.io/docs/reference/scheduling/config/#multiple-profiles), come fatto nel file [networktraffic-config.yaml](../networktraffic-config.yaml)
+The kube-scheduler includes the following list of plugins. These can be configured by creating or modifying [scheduler profiles](https://kubernetes.io/docs/reference/scheduling/config/#multiple-profiles), as it is done in the file [networktraffic-config.yaml](../networktraffic-config.yaml):
 
 * [Capacity Scheduling](pkg/capacityscheduling/README.md)
 * [Coscheduling](pkg/coscheduling/README.md)
@@ -20,26 +17,30 @@ Il kube-scheduler include la seguente lista di plugins. Questi possono essere co
 * [Network-Aware Scheduling](pkg/networkaware/README.md)
 * [NetworkTraffic Scheduling](pkg/networktraffic/README.md)
 
-## Utilizzo
+## Usage
 
-La nuova immagine dello scheduler viene creata localmente tramite il comando `make local-image` che andrà a generare una nuova immagine docker `localhost:5000/scheduler-plugins/kube-scheduler:latest`.
+The new scheduler image is created locally using the command `make local-image`, which will generate a new Docker image `localhost:5000/scheduler-plugins/kube-scheduler:latest`.
 
-A questo punto l'immagine viene caricata sui nodi del cluster affinchè sia presente localmente nel nodo master:
+At this point, the image is loaded onto the cluster nodes so that it is locally available on the master node:
 
 ``` kind load docker-image --name  vbeta3 localhost:5000/scheduler-plugins/kube-scheduler:latest  ```
 
-In alternativa può essere caricata in DockerHub se si modifica il file di configurazione [kube-scheduler.yaml](../kube-scheduler.yaml) indicando tra le specifiche l'url corretto da cui il nodo master deve scaricare l'immagine.
+Alternatively, it can be uploaded to DockerHub by modifying the configuration file [kube-scheduler.yaml](../kube-scheduler.yaml) and specifying the correct URL from which the master node should download the image.
 
-## Elementi chiave
+For the plugin to work properly, it's essential to have Prometheus pre-installed within the cluster and to follow the steps outlined in the [README.md](../README.md)  before loading the new local image into the cluster, in order to enable communication between the model and the plugin.
 
-L'immagine base dello scheduler è stata modificata da `alpine:3.16` in `debian:11` per poter eseguire il modello RL all'interno dello scheduler. Nel [dockerfile](build/scheduler/Dockerfile) dello scheduler inoltre è configurata l'installazione delle librerie per eseguire l'agente e viene attivato il venv.
+## Key elements
 
-La registrazione del custom plugin avviene in  `scheduler-plugins/cmd/sheduler/main.go` che inoltre avvia il modello e registra il custom plugin per lo scheduler.
-In particolare per registrare il nuovo plugin basta aggiungere nel file:
+The base image of the scheduler has been modified from `alpine:3.16` to `debian:11` to enable the execution of the RL model within the scheduler. Additionally, in the [dockerfile](build/scheduler/Dockerfile) of the scheduler, the installation of libraries to run the agent is configured, and the venv is activated.
+
+Custom plugin registration occurs in `scheduler-plugins/cmd/sheduler/main.go`, which also initializes the model and registers the custom plugin for the scheduler.
+To register the new plugin, simply add the following line in the file:
+
 ```app.WithPlugin(networktraffic.Name, networktraffic.New)```
 
-La directory pkg contiene tutti i possibili plugins tra cui networktraffic dove sono inclusi:
-- [networktraffic.go](pkg/networktraffic/networktraffic.go): file che definisce il custom plugin, al quale vengono mandati in input l'indirizzo di prometheus e l'interfaccia da cui richiedere le metriche.
-- [prometheus.go](pkg/networktraffic/prometheus.go): contiene funzioni di interazione tra custom plugin e  prometheus nel caso in cui la comunicazione con l'agente dovesse fallire
+The pkg directory contains all possible plugins, including networktraffic, which includes:
 
-In generale sono presenti modifiche a versioni di librerie per far funzionare correttamente le repo rispetto al repository originale.
+- [networktraffic.go](pkg/networktraffic/networktraffic.go): This file defines the custom plugin, which takes the Prometheus address and the interface from which to request metrics as inputs.
+- [prometheus.go](pkg/networktraffic/prometheus.go): It contains functions for interaction between the custom plugin and Prometheus in case communication with the agent fails.
+
+In general, there are changes to library versions to ensure that the repositories work correctly compared to the original repository.
