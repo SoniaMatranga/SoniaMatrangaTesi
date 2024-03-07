@@ -7,6 +7,7 @@ import multiprocessing
 from multiprocessing import Manager
 import json
 import os
+import time
 
 
 config.load_kube_config()
@@ -16,6 +17,15 @@ v1 = client.CoreV1Api()
 
 manager = Manager()
 suggestion_dict = manager.dict()
+step = manager.Value('b', False)
+
+def getStep():
+    global step
+    return step.value
+
+def setStep(step_value):
+    global step
+    step.value = step_value
 
 def setSuggestion(value):
     global suggestion_dict
@@ -24,6 +34,8 @@ def setSuggestion(value):
 def getSuggestion():
     global suggestion_dict
     return suggestion_dict.copy()
+
+
 
 #______________  nodi del cluster _______________
 
@@ -86,7 +98,7 @@ def get_worker_nodes_internal_ips():
 
     except Exception as e:
         print(f"Errore durante il recupero degli IP interni dei nodi worker: {str(e)}")
-        return ["172.19.0.4", "172.19.0.3", "172.19.0.2"]
+        return ["172.19.0.4", "172.19.0.5", "172.19.0.3"]
 
 
 #____________ metriche da metric server ____________
@@ -227,15 +239,27 @@ def handle_request(request):
     command, value = request.strip().split(' ', 1) if ' ' in request else (request.strip(), None)
 
     if command == "getSuggestion":
+        print(f"[NetworkTraffic] Server step value: {getStep()}")
+        setStep(True)
+        time.sleep(10) 
         return getSuggestion()
+    
     elif command == "setSuggestion":
         if value is not None:
-            # Esempio di come puoi convertire il valore in un dizionario JSON
             suggestion_data = json.loads(value)
             setSuggestion(suggestion_data)
             return {"status": "success", "message": "Suggestion set successfully."}
         else:
             return {"status": "error", "message": "Missing value for setSuggestion command."}
+    elif command == "getStep":
+        return getStep()
+    elif command == "setStep":
+        if value is not None:
+            step_data = json.loads(value)
+            setStep(step_data)
+            return {"status": "success", "message": "Step flag set successfully."}
+        else:
+            return {"status": "error", "message": "Missing value for setStep command."}
     else:
         return {"status": "error", "message": f"Unknown command: {command}"}
 
@@ -248,7 +272,8 @@ if __name__ == "__main__":
 
     while True:
         client_socket, client_address = server_socket.accept()
-        print(f"Connection request from: {client_address}")
+
+        #print(f"Connection request from: {client_address}")
 
         request = client_socket.recv(1024).decode("utf-8").strip()
 
