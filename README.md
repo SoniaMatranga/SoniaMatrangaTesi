@@ -18,6 +18,33 @@ In the proposed solution, there are four fundamental communication units:
 ![Architettura](./img/Architettura.jpg)
 
 The communication between these elements occurs during the scoring phase, although the plugin can be extended to work on other phases if the extensible APIs are used as indicated [here](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/#interfaces).
+## Suggestion Policies
+
+**MOST ALLOCATED POLICY**:
+   - The MostAllocated policy selects the machine with the highest resource utilization, to optimize energy consumption.
+
+     The reward is: the ratio between the number of unused machines and the total number of machines, where utilization is (usage of that resource /the maximum resource capacity of resource).
+      |               |               |
+      | ------------- | ------------- |
+      |  GOAL  | the agent must choose the node that has the higher resource_usage to schedule a new pod  |
+      | OBSERVATION  | provides the actual usage of specific resource from nodes  |
+      | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
+      | REWARD | the ratio between the number of unused machines and the total number of machines |
+      | STATE | resources usage |
+     
+**LEAST ALLOCATED POLICY** :
+
+   - The Least-Allocated policy selects the machine with the least resource utilization, to increase throughput.
+
+     The reward is: The reward function simply providesa constant value of ”1” each time a Pod is successfully scheduled.
+
+      |               |               |
+      | ------------- | ------------- |
+      |  GOAL  | the agent must choose the node that has the lower resource_usage to schedule a new pod  |
+      | OBSERVATION  | provides the actual usage of specific resource from nodes   |
+      | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
+      | REWARD |  |
+      | STATE | resources usage |
 
 ## Usage
 
@@ -61,6 +88,7 @@ To test the scheduler, you need to follow all the steps outlined below:
    Alternatively, the image can be uploaded to DockerHub by modifying the kube-scheduler.yaml configuration file to specify to the master node from where to download the image, as it is set in spec section of [kube-scheduler.yaml](kube-scheduler.yaml) configuration file.
 
 6. **Restart the control-plane**
+
    It is necessary to restart the control-plane and delete the scheduler pod to create the new scheduler with the correct configuration and the local image. The scheduler pod can be obtained if using kubectl with the command:
    ```
     kubectl get pods -n kube-system
