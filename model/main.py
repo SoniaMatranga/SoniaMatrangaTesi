@@ -13,6 +13,8 @@ import time
 config.load_kube_config()
 # Configura l'accesso al cluster Kubernetes
 v1 = client.CoreV1Api()
+#nodes = v1.list_node()
+
 
 
 manager = Manager()
@@ -41,12 +43,12 @@ def getSuggestion():
 
 def node_count():
     try:
-        # Ottieni la lista dei nodi
+        config.load_kube_config()
+        v1 = client.CoreV1Api()
         nodes = v1.list_node()
 
-        # Stampa il numero di nodi
         node_count = len(nodes.items)
-        #print(f"Cluster contains {node_count} nodes.")
+        print(f"Cluster contains {node_count} nodes.")
         return node_count
 
     except Exception as e:
@@ -78,26 +80,25 @@ def get_nodes_names():
 
 def get_worker_nodes_internal_ips():
     try:
-        # Configura il client Kubernetes per l'utilizzo all'interno di un pod
-        config.load_incluster_config()
-
+        config.load_kube_config()
+        # Configura l'accesso al cluster Kubernetes
         v1 = client.CoreV1Api()
         nodes = v1.list_node()
 
-        # Estrai gli indirizzi IP interni dei nodi worker
-        worker_ips = [
-            address.address
-            for node in nodes.items
-            for label in node.metadata.labels
-            if label.endswith("/worker")
-            for address in node.status.addresses
-            if address.type == "InternalIP"
-        ]
+        worker_ips = []
+        for node in nodes.items:
+            for label in node.metadata.labels:
+                if label.endswith("/worker"):
+                    for address in node.status.addresses:
+                        if address.type == "InternalIP":
+                            worker_ips.append(address.address)
+
+        print(f"IP ADDRESSES: {worker_ips}")
 
         return worker_ips
 
     except Exception as e:
-        print(f"Errore durante il recupero degli IP interni dei nodi worker: {str(e)}")
+        print(f"Error while retrieving internal IPs of worker nodes: {str(e)}")
         return ["172.19.0.4", "172.19.0.5", "172.19.0.3"]
 
 
@@ -195,44 +196,70 @@ def get_memory_capacity_metrics_server():
     print(metrics)
     return np.array(metrics, dtype=np.float32)
 
-#____________ metriche da prometheus ____________  
-#   
+#####################################    NETWORKING   ########################################################## 
+
 def get_networking_prometheus(internal_ip):
-    # Specifica l'URL dell'endpoint di Prometheus con ip interno al cluster
     prometheus_url = "http://10.96.105.208:9090/api/v1/query"
-    prometheus_query = f'sum_over_time(node_network_receive_bytes_total{{instance="{internal_ip}:9100",device="eth0"}}[5m])' #Si ottengono risultati nella forma [timestamp, recieved_bytes_value]
+    prometheus_query = f'sum_over_time(node_network_receive_bytes_total{{instance="{internal_ip}:9100",device="eth0"}}[5m])' #Results are in the shape [timestamp, recieved_bytes_value]
 
     try:
         response = requests.get(prometheus_url, params={'query': prometheus_query})
-
         if response.status_code == 200:
             metrics_data = response.json()
             return metrics_data
         else:
-            print(f"Errore nella richiesta HTTP: Codice di stato {response.status_code}")
-
+            print(f"Error on HTTP request: status code {response.status_code}")
     except Exception as e:
-        print(f"Errore durante la richiesta HTTP: {str(e)}")
+        print(f"Error on HTTP request: {str(e)}")
 
 def get_nodes_network_usage(ips):
     metrics = [] 
 
     for i, node in enumerate(ips): 
         network_usage = get_networking_prometheus(node)
-        
         if network_usage and 'data' in network_usage and 'result' in network_usage['data']:
-                # Estrai il primo elemento dalla lista 'result'
                 result_list = network_usage['data']['result']
                 if result_list:
-                    # Estrai il valore dalla lista 'value'
-                    value_list = result_list[0].get('value')
-                    
+                    value_list = result_list[0].get('value')                    
                     if value_list:
-                        # Se 'value' è presente, aggiungi la metrica alla lista
                         metrics.append(float(value_list[1]))
 
     print(metrics)
     return metrics
+
+#########################################  CPU  ###################################################
+
+def get_cpu_prometheus(internal_ip):
+    prometheus_url = "http://10.96.105.208:9090/api/v1/query"
+    prometheus_query = f'100 - (avg(irate(node_cpu_seconds_total{{mode="idle", instance="{internal_ip}:9100"}}[1m])) * 100)' #Results are in the shape [metadata, cpu_percentage_value]
+
+    try:
+        response = requests.get(prometheus_url, params={'query': prometheus_query})
+        if response.status_code == 200:
+            metrics_data = response.json()
+            return metrics_data
+        else:
+            print(f"Error on HTTP request: status code {response.status_code}")
+    except Exception as e:
+        print(f"Error on HTTP request: {str(e)}")
+
+def get_nodes_cpu_usage(ips):
+    metrics = [] 
+
+    for i, node in enumerate(ips): 
+        cpu_usage = get_cpu_prometheus(node)
+        if cpu_usage and 'data' in cpu_usage and 'result' in cpu_usage['data']:
+                result_list = cpu_usage['data']['result']
+                if result_list:
+                    value_list = result_list[0].get('value')
+                    if value_list:
+                        # add metric to  list
+                        metrics.append(float(value_list[1]))
+
+    print(metrics)
+    return metrics
+
+
 
 
 def handle_request(request):
@@ -268,18 +295,12 @@ if __name__ == "__main__":
     server_socket.bind(("localhost", 8765))
     server_socket.listen(1)
 
-    print("Server in ascolto su http://localhost:8765")
+    print("Server is listening on  http://localhost:8765")
 
     while True:
         client_socket, client_address = server_socket.accept()
-
-        #print(f"Connection request from: {client_address}")
-
         request = client_socket.recv(1024).decode("utf-8").strip()
-
         response_data = handle_request(request)
-
         response_json = json.dumps(response_data)
         client_socket.send(response_json.encode("utf-8"))
-
         client_socket.close()
