@@ -3,17 +3,13 @@ import subprocess
 import numpy as np
 import requests
 import socket
-import multiprocessing
 from multiprocessing import Manager
 import json
-import os
 import time
 
 
 config.load_kube_config()
-# Configura l'accesso al cluster Kubernetes
 v1 = client.CoreV1Api()
-#nodes = v1.list_node()
 
 
 
@@ -39,16 +35,14 @@ def getSuggestion():
 
 
 
-#______________  nodi del cluster _______________
+###################################   CLUSTER NODES   ###############################################
 
 def node_count():
     try:
         config.load_kube_config()
         v1 = client.CoreV1Api()
         nodes = v1.list_node()
-
         node_count = len(nodes.items)
-        print(f"Cluster contains {node_count} nodes.")
         return node_count
 
     except Exception as e:
@@ -57,14 +51,12 @@ def node_count():
 def get_nodes_names():
     names = []
     try:
-        # Esegui il comando "kubectl top nodes" 
         command = ["kubectl", "top", "nodes"]
         output = subprocess.check_output(command, universal_newlines=True)
         lines = output.split('\n')
 
-        lines = lines[1:]  # Scarta la prima riga poiché contiene gli header
-        
-        # Stampa le metriche
+        lines = lines[1:]  # fist line contains header
+    
         for line in lines:
             if line:
                 parts = line.split()
@@ -81,7 +73,6 @@ def get_nodes_names():
 def get_worker_nodes_internal_ips():
     try:
         config.load_kube_config()
-        # Configura l'accesso al cluster Kubernetes
         v1 = client.CoreV1Api()
         nodes = v1.list_node()
 
@@ -101,102 +92,22 @@ def get_worker_nodes_internal_ips():
         print(f"Error while retrieving internal IPs of worker nodes: {str(e)}")
         return ["172.19.0.4", "172.19.0.5", "172.19.0.3"]
 
+#####################################   ENV STATE   ###############################################
 
-#____________ metriche da metric server ____________
+def get_nodes_state(policy, ips):
+    if policy == "MA":
+        return get_nodes_cpu_usage(ips)
+    
+    elif policy == "LA":
+        return get_nodes_network_usage(ips)
+    elif policy == "LB":
+        return
+    else:
+        return {"status": "error", "message": f"Unknown policy: {policy}"}
 
 
-def get_memory_usage_metrics_server():
 
-    metrics = []
-    try:
-        # Esegui il comando "kubectl top nodes" 
-        command = ["kubectl", "top", "nodes"]
-        output = subprocess.check_output(command, universal_newlines=True)
-        lines = output.split('\n')
-
-        lines = lines[1:]  # Scarta la prima riga poiché contiene gli header
-        
-        # Stampa le metriche
-        for line in lines:
-            if line:
-                parts = line.split()
-                node_name, cpu_usage, _, memory_usage, _ = parts
-                #print(f"Name: {node_name}  Memory_usage: {memory_usage}")
-                metrics.append(f"{memory_usage}".strip("Mi"))
-
-    except subprocess.CalledProcessError as e:
-        print(f"Error while exectuing kubectl: {e}")
-    except Exception as e:
-        print(f"General error: {e}")
-    print(metrics)
-    return np.array(metrics, dtype=np.float32)
-
-def get_usage_metrics_server():
-
-    metrics = []
-    try:
-        # Esegui il comando "kubectl top nodes" 
-        command = ["kubectl", "top", "nodes"]
-        output = subprocess.check_output(command, universal_newlines=True)
-        lines = output.split('\n')
-
-        lines = lines[1:]  # Scarta la prima riga poiché contiene gli header
-        
-        # Stampa le metriche
-        for line in lines:
-            if line:
-                parts = line.split()
-                node_name, cpu_usage, _, memory_usage, _ = parts
-                #print(f"Name: {node_name}  Memory_usage: {memory_usage}")
-                metrics.append(f"{node_name}:{memory_usage}")
-
-    except subprocess.CalledProcessError as e:
-        print(f"Error while exectuing kubectl: {e}")
-    except Exception as e:
-        print(f"General error: {e}")
-    print(metrics)
-    return np.array(metrics)
-
-def get_capacity_metrics_server():
-    metrics = []
-    try:
-        # Ottieni le metriche di utilizzo della CPU e della memoria per i nodi
-        node_metrics = v1.list_node(resource_version="0")
-
-        # Stampa le metriche dei nodi
-        for node in node_metrics.items:
-           # print(f"Nome del nodo: {node.metadata.name}")
-            for condition in node.status.conditions:
-                if condition.type == "Ready" and condition.status == "True":
-                   # print(f"Capacità CPU: {node.status.capacity['cpu']}  Capacità memoria: {node.status.capacity['memory']}")
-                    metrics.append(f"{node.metadata.name}:{node.status.capacity['memory']}")
-                    break
-
-    except Exception as e:
-        print(f"Errore durante il recupero delle metriche dei nodi: {str(e)}")
-    #print(metrics)
-    return np.array(metrics)
-
-def get_memory_capacity_metrics_server():
-    metrics = []
-    try:
-        # Ottieni le metriche di utilizzo della CPU e della memoria per i nodi
-        node_metrics = v1.list_node(resource_version="0")
-
-        # Stampa le metriche dei nodi
-        for node in node_metrics.items:
-           # print(f"Nome del nodo: {node.metadata.name}")
-            for condition in node.status.conditions:
-                if condition.type == "Ready" and condition.status == "True":
-                    metrics.append(f"{node.status.capacity['memory']}".strip("Ki"))
-                    break
-
-    except Exception as e:
-        print(f"Errore durante il recupero delle metriche dei nodi: {str(e)}")
-    print(metrics)
-    return np.array(metrics, dtype=np.float32)
-
-#####################################    NETWORKING   ########################################################## 
+#################################    NETWORKING METRICS   ##########################################
 
 def get_networking_prometheus(internal_ip):
     prometheus_url = "http://10.96.105.208:9090/api/v1/query"
@@ -227,7 +138,7 @@ def get_nodes_network_usage(ips):
     print(metrics)
     return metrics
 
-#########################################  CPU  ###################################################
+#####################################  CPU METRICS  ################################################
 
 def get_cpu_prometheus(internal_ip):
     prometheus_url = "http://10.96.105.208:9090/api/v1/query"
@@ -260,7 +171,7 @@ def get_nodes_cpu_usage(ips):
     return metrics
 
 
-
+##################################  SUGGESTIONS SERVER  #########################################
 
 def handle_request(request):
     command, value = request.strip().split(' ', 1) if ' ' in request else (request.strip(), None)
@@ -289,6 +200,9 @@ def handle_request(request):
             return {"status": "error", "message": "Missing value for setStep command."}
     else:
         return {"status": "error", "message": f"Unknown command: {command}"}
+    
+
+
 
 if __name__ == "__main__":
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
