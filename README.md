@@ -18,41 +18,40 @@ In the proposed solution, there are four fundamental communication units:
 ![Architettura](./img/Architettura.jpg)
 
 The communication between these elements occurs during the scoring phase, although the plugin can be extended to work on other phases if the extensible APIs are used as indicated [here](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/#interfaces).
-## Suggestion Policies
+## Load Balancing suggestion Policies
 
-**MOST ALLOCATED POLICY**:
+**Most allocated policy**:
    - The MostAllocated policy selects the machine with the highest resource utilization, to optimize energy consumption.
 
-     The reward is: the ratio between the number of unused machines and the total number of machines, where utilization is (usage of that resource /the maximum resource capacity of resource).
       |               |               |
       | ------------- | ------------- |
       |  GOAL  | the agent must choose the node that has the higher resource_usage to schedule a new pod  |
       | OBSERVATION  | provides the actual usage of specific resource from nodes  |
       | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
-      | REWARD | the ratio between the number of unused machines and the total number of machines |
+      | REWARD | the ratio between the number of unused machines and the total number of machines, where utilization is (usage of that resource /the maximum resource capacity of resource) |
       | STATE | resources usage |
+      | ------------- | ------------- |
+      |               |               |
      
-**LEAST ALLOCATED POLICY** :
+**Least allocated policy** :
 
    - The Least-Allocated policy selects the machine with the least resource utilization, to increase throughput.
-
-     The reward is: The reward function simply providesa constant value of ”1” each time a Pod is successfully scheduled.
 
       |               |               |
       | ------------- | ------------- |
       |  GOAL  | the agent must choose the node that has the lower resource_usage to schedule a new pod  |
       | OBSERVATION  | provides the actual usage of specific resource from nodes   |
       | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
-      | REWARD |  |
+      | REWARD | The reward function simply providesa constant value of ”1” each time a Pod is successfully scheduled |
       | STATE | resources usage |
 
 ## Usage
 
-To test the scheduler, you need to follow all the steps outlined below:
+To test the scheduler, it is needed to follow all the steps outlined below:
 
 1. **Setup Kind Cluster**:
 
-   Create a Kind cluster with 4 nodes using the configuration file [kind-config.yaml](kind-config.yaml), , where the paths of the model and venv need to be correctly configured. Execute it with:
+   Create a Kind cluster with 4 nodes using the configuration file [kind-config.yaml](kind-config.yaml), where the paths of the model and venv need to be correctly configured. Execute it with:
    ```
    kind create cluster --name vbeta3 --config kind-config.yaml
    ```

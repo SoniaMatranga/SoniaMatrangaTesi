@@ -90,53 +90,22 @@ def get_worker_nodes_internal_ips():
 
     except Exception as e:
         print(f"Error while retrieving internal IPs of worker nodes: {str(e)}")
-        return ["172.19.0.4", "172.19.0.5", "172.19.0.3"]
+        return 
 
 #####################################   ENV STATE   ###############################################
 
-def get_nodes_state(policy, ips):
-    if policy == "MA":
+def get_nodes_state( resource, ips):     
+    if resource == "CPU":
         return get_nodes_cpu_usage(ips)
-    
-    elif policy == "LA":
+    elif resource == "MEM":
+        return get_nodes_mem_usage(ips)
+    elif resource == "NET":
         return get_nodes_network_usage(ips)
-    elif policy == "LB":
-        return
+    elif resource == "DISK":
+        return get_nodes_disk_usage(ips)
     else:
-        return {"status": "error", "message": f"Unknown policy: {policy}"}
-
-
-
-#################################    NETWORKING METRICS   ##########################################
-
-def get_networking_prometheus(internal_ip):
-    prometheus_url = "http://10.96.105.208:9090/api/v1/query"
-    prometheus_query = f'sum_over_time(node_network_receive_bytes_total{{instance="{internal_ip}:9100",device="eth0"}}[5m])' #Results are in the shape [timestamp, recieved_bytes_value]
-
-    try:
-        response = requests.get(prometheus_url, params={'query': prometheus_query})
-        if response.status_code == 200:
-            metrics_data = response.json()
-            return metrics_data
-        else:
-            print(f"Error on HTTP request: status code {response.status_code}")
-    except Exception as e:
-        print(f"Error on HTTP request: {str(e)}")
-
-def get_nodes_network_usage(ips):
-    metrics = [] 
-
-    for i, node in enumerate(ips): 
-        network_usage = get_networking_prometheus(node)
-        if network_usage and 'data' in network_usage and 'result' in network_usage['data']:
-                result_list = network_usage['data']['result']
-                if result_list:
-                    value_list = result_list[0].get('value')                    
-                    if value_list:
-                        metrics.append(float(value_list[1]))
-
-    print(metrics)
-    return metrics
+        return {"status": "error", "message": f"Unknown resource: {resource}"}
+        
 
 #####################################  CPU METRICS  ################################################
 
@@ -169,6 +138,105 @@ def get_nodes_cpu_usage(ips):
 
     print(metrics)
     return metrics
+
+#####################################  MEM METRICS  ################################################
+
+def get_mem_prometheus(internal_ip):
+    prometheus_url = "http://10.96.105.208:9090/api/v1/query"
+    prometheus_query = f'node_memory_MemAvailable_bytes{{instance="{internal_ip}:9100"}}/10^9' #Results are in the shape [metadata, cpu_percentage_value]
+
+    try:
+        response = requests.get(prometheus_url, params={'query': prometheus_query})
+        if response.status_code == 200:
+            metrics_data = response.json()
+            return metrics_data
+        else:
+            print(f"Error on HTTP request: status code {response.status_code}")
+    except Exception as e:
+        print(f"Error on HTTP request: {str(e)}")
+
+def get_nodes_mem_usage(ips):
+    metrics = [] 
+
+    for i, node in enumerate(ips): 
+        mem_usage = get_mem_prometheus(node)
+        if mem_usage and 'data' in mem_usage and 'result' in mem_usage['data']:
+                result_list = mem_usage['data']['result']
+                if result_list:
+                    value_list = result_list[0].get('value')
+                    if value_list:
+                        # add metric to  list
+                        metrics.append(float(value_list[1]))
+
+    print(metrics)
+    return metrics
+
+        
+#################################    NET  METRICS   ##############################################
+
+def get_networking_prometheus(internal_ip):
+    prometheus_url = "http://10.96.105.208:9090/api/v1/query"
+    prometheus_query = f'sum_over_time(node_network_receive_bytes_total{{instance="{internal_ip}:9100",device="eth0"}}[5m])' #Results are in the shape [timestamp, recieved_bytes_value]
+
+    try:
+        response = requests.get(prometheus_url, params={'query': prometheus_query})
+        if response.status_code == 200:
+            metrics_data = response.json()
+            return metrics_data
+        else:
+            print(f"Error on HTTP request: status code {response.status_code}")
+    except Exception as e:
+        print(f"Error on HTTP request: {str(e)}")
+
+def get_nodes_network_usage(ips):
+    metrics = [] 
+
+    for i, node in enumerate(ips): 
+        network_usage = get_networking_prometheus(node)
+        if network_usage and 'data' in network_usage and 'result' in network_usage['data']:
+                result_list = network_usage['data']['result']
+                if result_list:
+                    value_list = result_list[0].get('value')                    
+                    if value_list:
+                        metrics.append(float(value_list[1]))
+
+    print(metrics)
+    return metrics
+
+
+#####################################  DISK METRICS  ################################################
+
+def get_disk_prometheus(internal_ip):
+    prometheus_url = "http://10.96.105.208:9090/api/v1/query"
+    prometheus_query = f'100 - (node_filesystem_free_bytes{{mountpoint="/var",instance="{internal_ip}:9100"}} / node_filesystem_size_bytes{{mountpoint="/var",instance="{internal_ip}:9100"}} * 100)' #Results are in the shape [metadata, disk_percentage_value]
+
+    try:
+        response = requests.get(prometheus_url, params={'query': prometheus_query})
+        if response.status_code == 200:
+            metrics_data = response.json()
+            return metrics_data
+        else:
+            print(f"Error on HTTP request: status code {response.status_code}")
+    except Exception as e:
+        print(f"Error on HTTP request: {str(e)}")
+
+def get_nodes_disk_usage(ips):
+    metrics = [] 
+
+    for i, node in enumerate(ips): 
+        disk_usage = get_disk_prometheus(node)
+        if disk_usage and 'data' in disk_usage and 'result' in disk_usage['data']:
+                result_list = disk_usage['data']['result']
+                if result_list:
+                    value_list = result_list[0].get('value')
+                    if value_list:
+                        # add metric to  list
+                        metrics.append(float(value_list[1]))
+
+    print(metrics)
+    return metrics
+
+
 
 
 ##################################  SUGGESTIONS SERVER  #########################################
