@@ -41,7 +41,7 @@ The communication between these elements occurs during the scoring phase, althou
       |  GOAL  | the agent must choose the node that has the lower resource_usage to schedule a new pod  |
       | OBSERVATION  | provides the actual usage of specific resource from nodes   |
       | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
-      | REWARD | The reward function simply providesa constant value of ”1” each time a Pod is successfully scheduled |
+      | REWARD | it provides a constant value of ”1” each time a Pod is successfully scheduled |
       | STATE | resources usage |
       |               |               |
 
