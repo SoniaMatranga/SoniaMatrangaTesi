@@ -20,7 +20,7 @@ In the proposed solution, there are four fundamental communication units:
 The communication between these elements occurs during the scoring phase, although the plugin can be extended to work on other phases if the extensible APIs are used as indicated [here](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/#interfaces).
 ## Load Balancing suggestion Policies
 
-**Most allocated policy**:
+**MOST ALLOCATED POLICY**:
    - The MostAllocated policy selects the machine with the highest resource utilization, to optimize energy consumption.
 
       |               |               |
@@ -30,10 +30,9 @@ The communication between these elements occurs during the scoring phase, althou
       | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
       | REWARD | the ratio between the number of unused machines and the total number of machines, where utilization is (usage of that resource /the maximum resource capacity of resource) |
       | STATE | resources usage |
-      | ------------- | ------------- |
       |               |               |
      
-**Least allocated policy** :
+**LEAST ALLOCATED POLICY** :
 
    - The Least-Allocated policy selects the machine with the least resource utilization, to increase throughput.
 
@@ -44,6 +43,7 @@ The communication between these elements occurs during the scoring phase, althou
       | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
       | REWARD | The reward function simply providesa constant value of ”1” each time a Pod is successfully scheduled |
       | STATE | resources usage |
+      |               |               |
 
 ## Usage
 
