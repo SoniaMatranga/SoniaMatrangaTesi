@@ -20,29 +20,42 @@ In the proposed solution, there are four fundamental communication units:
 The communication between these elements occurs during the scoring phase, although the plugin can be extended to work on other phases if the extensible APIs are used as indicated [here](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/#interfaces).
 ## Load Balancing suggestion Policies
 
-**MOST ALLOCATED POLICY**:
-   - The MostAllocated policy selects the machine with the highest resource utilization, to optimize energy consumption.
+**Most allocated policy**:
+   - The MostAllocated policy selects the machine with the highest resource (CPU, memory or disk) utilization, to optimize energy consumption.
 
       |               |               |
       | ------------- | ------------- |
-      |  GOAL  | the agent must choose the node that has the higher resource_usage to schedule a new pod  |
+      |  GOAL  | the agent must choose the node that has the higher resource usage to schedule a new pod  |
       | OBSERVATION  | provides the actual usage of specific resource from nodes  |
       | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
       | REWARD | the ratio between the number of unused machines and the total number of machines, where utilization is (usage of that resource /the maximum resource capacity of resource) |
       | STATE | resources usage |
       |               |               |
      
-**LEAST ALLOCATED POLICY** :
+**Least allocated policy** :
 
-   - The Least-Allocated policy selects the machine with the least resource utilization, to increase throughput.
+   - The Least-Allocated policy selects the machine with the least resource (CPU, memory or disk) utilization, to increase throughput.
 
       |               |               |
       | ------------- | ------------- |
-      |  GOAL  | the agent must choose the node that has the lower resource_usage to schedule a new pod  |
+      |  GOAL  | the agent must choose the node that has the lower resource usage to schedule a new pod  |
       | OBSERVATION  | provides the actual usage of specific resource from nodes   |
       | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
-      | REWARD | it provides a constant value of ”1” each time a Pod is successfully scheduled |
+      | REWARD | The reward function simply providesa constant value of ”1” each time a Pod is successfully scheduled |
       | STATE | resources usage |
+      |               |               |
+
+**Least connections policy** :
+
+   - The Least-Allocated policy selects the machine with the fewest active connections, to increase throughput.
+
+      |               |               |
+      | ------------- | ------------- |
+      |  GOAL  | the agent must choose the node that has the fewest active connections to schedule a new pod  |
+      | OBSERVATION  | provides the number of active connections from nodes   |
+      | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
+      | REWARD | is 1 minus the ratio (min active connections/ max active connections) so it aims to minimize the difference in the number of active sessions between nodes|
+      | STATE | active connections |
       |               |               |
 
 ## Usage

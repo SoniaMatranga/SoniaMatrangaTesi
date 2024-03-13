@@ -94,17 +94,22 @@ def get_worker_nodes_internal_ips():
 
 #####################################   ENV STATE   ###############################################
 
-def get_nodes_state( resource, ips):     
-    if resource == "CPU":
-        return get_nodes_cpu_usage(ips)
-    elif resource == "MEM":
-        return get_nodes_mem_usage(ips)
-    elif resource == "NET":
-        return get_nodes_network_usage(ips)
-    elif resource == "DISK":
-        return get_nodes_disk_usage(ips)
+def get_nodes_state(policy, resource, ips):    
+    if policy  == "LA" | policy == "MA":
+        if resource == "CPU":
+            return get_nodes_cpu_usage(ips)
+        elif resource == "MEM":
+            return get_nodes_mem_usage(ips)
+        elif resource == "NET":
+            return get_nodes_network_usage(ips)
+        elif resource == "DISK":
+            return get_nodes_disk_usage(ips)
+        else:
+            return {"status": "error", "message": f"Unknown resource: {resource}"}
+    elif policy == "LC": #least connections policy
+        return get_nodes_network_connections(ips)
     else:
-        return {"status": "error", "message": f"Unknown resource: {resource}"}
+        return {"status": "error", "message": f"Unknown policy: {policy}"}
         
 
 #####################################  CPU METRICS  ################################################
@@ -172,37 +177,6 @@ def get_nodes_mem_usage(ips):
     return metrics
 
         
-#################################    NET  METRICS   ##############################################
-
-def get_networking_prometheus(internal_ip):
-    prometheus_url = "http://10.96.105.208:9090/api/v1/query"
-    prometheus_query = f'sum_over_time(node_network_receive_bytes_total{{instance="{internal_ip}:9100",device="eth0"}}[5m])' #Results are in the shape [timestamp, recieved_bytes_value]
-
-    try:
-        response = requests.get(prometheus_url, params={'query': prometheus_query})
-        if response.status_code == 200:
-            metrics_data = response.json()
-            return metrics_data
-        else:
-            print(f"Error on HTTP request: status code {response.status_code}")
-    except Exception as e:
-        print(f"Error on HTTP request: {str(e)}")
-
-def get_nodes_network_usage(ips):
-    metrics = [] 
-
-    for i, node in enumerate(ips): 
-        network_usage = get_networking_prometheus(node)
-        if network_usage and 'data' in network_usage and 'result' in network_usage['data']:
-                result_list = network_usage['data']['result']
-                if result_list:
-                    value_list = result_list[0].get('value')                    
-                    if value_list:
-                        metrics.append(float(value_list[1]))
-
-    print(metrics)
-    return metrics
-
 
 #####################################  DISK METRICS  ################################################
 
@@ -236,6 +210,66 @@ def get_nodes_disk_usage(ips):
     print(metrics)
     return metrics
 
+#################################    NET  METRICS   ##############################################
+
+def get_networking_prometheus(internal_ip):
+    prometheus_url = "http://10.96.105.208:9090/api/v1/query"
+    prometheus_query = f'sum_over_time(node_network_receive_bytes_total{{instance="{internal_ip}:9100",device="eth0"}}[5m])' #Results are in the shape [timestamp, recieved_bytes_value]
+
+    try:
+        response = requests.get(prometheus_url, params={'query': prometheus_query})
+        if response.status_code == 200:
+            metrics_data = response.json()
+            return metrics_data
+        else:
+            print(f"Error on HTTP request: status code {response.status_code}")
+    except Exception as e:
+        print(f"Error on HTTP request: {str(e)}")
+
+def get_nodes_network_usage(ips):
+    metrics = [] 
+
+    for i, node in enumerate(ips): 
+        network_usage = get_networking_prometheus(node)
+        if network_usage and 'data' in network_usage and 'result' in network_usage['data']:
+                result_list = network_usage['data']['result']
+                if result_list:
+                    value_list = result_list[0].get('value')                    
+                    if value_list:
+                        metrics.append(float(value_list[1]))
+
+    print(metrics)
+    return metrics
+
+def get_node_connections_prometheus(internal_ip):
+    prometheus_url = "http://10.96.105.208:9090/api/v1/query"
+    prometheus_query = f'node_netstat_Tcp_CurrEstab{{instance="{internal_ip}:9100"}}' #Results are in the shape [timestamp, recieved_bytes_value]
+
+    try:
+        response = requests.get(prometheus_url, params={'query': prometheus_query})
+        if response.status_code == 200:
+            metrics_data = response.json()
+            return metrics_data
+        else:
+            print(f"Error on HTTP request: status code {response.status_code}")
+    except Exception as e:
+        print(f"Error on HTTP request: {str(e)}")
+
+def get_nodes_network_connections(ips):
+    metrics = [] 
+
+    for i, node in enumerate(ips): 
+        network_usage = get_node_connections_prometheus(node)
+        if network_usage and 'data' in network_usage and 'result' in network_usage['data']:
+                result_list = network_usage['data']['result']
+                if result_list:
+                    value_list = result_list[0].get('value')                    
+                    if value_list:
+                        metrics.append(float(value_list[1]))
+
+    print(metrics)
+    return metrics
+
 
 
 
@@ -245,9 +279,8 @@ def handle_request(request):
     command, value = request.strip().split(' ', 1) if ' ' in request else (request.strip(), None)
 
     if command == "getSuggestion":
-        print(f"[NetworkTraffic] Server step value: {getStep()}")
         setStep(True)
-        time.sleep(10) 
+        time.sleep(1) 
         return getSuggestion()
     
     elif command == "setSuggestion":
@@ -273,11 +306,13 @@ def handle_request(request):
 
 
 if __name__ == "__main__":
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(("localhost", 8765))
-    server_socket.listen(1)
-
-    print("Server is listening on  http://localhost:8765")
+    try:
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind(("localhost", 8765))
+        server_socket.listen(1)
+        print("Server is listening on  http://localhost:8765")
+    except socket.error as e:
+        print(f"something went wrong when starting the server...\n {e}")
 
     while True:
         client_socket, client_address = server_socket.accept()
