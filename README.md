@@ -58,6 +58,34 @@ The communication between these elements occurs during the scoring phase, althou
       | STATE | active connections |
       |               |               |
 
+## Prometheus metics queries
+1) CPU:
+This query calculates the CPU usage percentage by subtracting from the total percentage (100%) the percentage of time spent in "idle" mode on the CPU. So when selecting CPU as resource, the state will contain CPU usage percentages for each node.
+ ```
+   100 - (avg(irate(node_cpu_seconds_total{{mode="idle", instance="{internal_node_ip}:9100"}}[1m])) * 100)
+ ```
+2) MEMORY:
+This Prometheus query returns the amount of available memory in gigabytes on a specific node. `node_memory_MemAvailable_bytes` represents the amount of physical memory available for the operating system processes and new processes expressed in bytes
+ ```
+   node_memory_MemAvailable_bytes{{instance="{internal_ip}:9100"}}/10^9
+ ```
+3) DISK:
+This query evaluates the percentage of free space on the specific filesystem.
+ ```
+   100 - (node_filesystem_free_bytes{{mountpoint="/run",instance="{internal_ip}:9100"}} / node_filesystem_size_bytes{{mountpoint="/run",instance="{internal_ip}:9100"}} * 100)
+ ```
+4) NETWORK TRAFFIC:
+This query calculates the rate of byte reception on the "eth0" interface on a specific node over the last 5 minutes. The result is expressed in bytes per second (bps), representing the effective network bandwidth for the "eth0" interface during the specified time interval.
+```
+  rate(node_network_receive_bytes_total{instance="{internal_ip}:9100", device="eth0"}[5m])
+ ```
+5) NETWORK CONNECTIONS:
+This Prometheus query retrieves the current number of established TCP connections on a specific node.
+```
+  node_netstat_Tcp_CurrEstab{{instance="{internal_ip}:9100"}}
+ ```
+
+
 ## Usage
 
 To test the scheduler, it is needed to follow all the steps outlined below:
