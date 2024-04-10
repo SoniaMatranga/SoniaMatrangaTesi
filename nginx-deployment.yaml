@@ -1,9 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment
+  name: "{{ DEPLOYMENT_NAME }}"
+  labels:
+    app: nginx 
 spec:
-  replicas: 2  
+  replicas: 1  
   selector:
     matchLabels:
       app: nginx
@@ -17,3 +19,8 @@ spec:
         image: nginx:latest  
         ports:
         - containerPort: 80  
+        resources:
+          requests:
+            memory: "64Mi"   # Esempio di richiesta di 64 megabyte di memoria
+            cpu: "250m"      # Esempio di richiesta di 250 millicpu (0.25 CPU)
+ 

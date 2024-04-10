@@ -86,7 +86,7 @@ func main() {
 	}
 
 	// Start model
-	pythonCommand := exec.Command("/etc/kubernetes/venv/bin/python3", "/etc/kubernetes/model/cleanrl/cleanrl/dqn.py", "--env-id", "Scheduling-v0")
+	pythonCommand := exec.Command("/etc/kubernetes/venv/bin/python3", "/etc/kubernetes/model/cleanrl/cleanrl/dqn.py", "--env-id", "Scheduling-v0", "--exploration-fraction", "0.3", "--save-model", "True", "--total-timesteps", "2000", "--learning-rate", "2.5e-3", "--learning-starts", "300")
 	pythonCommand.Stdout = os.Stdout
 	pythonCommand.Stderr = os.Stderr
 

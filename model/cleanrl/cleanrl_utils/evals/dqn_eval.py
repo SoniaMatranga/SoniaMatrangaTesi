@@ -15,7 +15,7 @@ def evaluate(
     Model: torch.nn.Module,
     device: torch.device = torch.device("cpu"),
     epsilon: float = 0.05,
-    capture_video: bool = True,
+    capture_video: bool = False,
 ):
     envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, 0, capture_video, run_name)])
     model = Model(envs).to(device)

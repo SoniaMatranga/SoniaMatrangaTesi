@@ -1,6 +1,6 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/dqn/#dqnpy
 import sys
-sys.path.append('/etc/kubernetes/venv/lib/python3.9/site-packages')
+sys.path.append('/etc/kubernetes/model/cleanrl/')
 
 import gymnasium as gym
 import numpy as np
@@ -247,7 +247,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             model_path,
             make_env,
             args.env_id,
-            eval_episodes=10,
+            eval_episodes=50000,
             run_name=f"{run_name}-eval",
             Model=QNetwork,
             device=device,

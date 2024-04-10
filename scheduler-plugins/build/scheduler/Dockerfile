@@ -30,6 +30,8 @@ RUN apt update && \
 RUN python3 -m pip install --upgrade numpy setuptools
 RUN python3 -m pip install Kubernetes
 RUN python3 -m pip install torch torchvision torchaudio -f https://download.pytorch.org/whl/cpu/torch_stable.html
+RUN python3 -m pip install matplotlib
+RUN python3 -m pip install tensorboard
 
 # Attivazione dell'ambiente virtuale già presente
 ENV VIRTUAL_ENV=/etc/kubernetes/venv
