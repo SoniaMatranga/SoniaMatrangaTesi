@@ -5,8 +5,8 @@ metadata:
   labels:
     app: nginx 
   annotations:
-    latencySoftConstraint: "1"
-    latencyHardConstraint: "60"
+    latencySoftConstraint: "35"
+    latencyHardConstraint: "100"
 spec:
   replicas: 1  
   selector:
@@ -17,8 +17,8 @@ spec:
       labels:
         app: nginx
       annotations:
-        latencySoftConstraint: "1"
-        latencyHardConstraint: "60"
+        latencySoftConstraint: "35"
+        latencyHardConstraint: "100"
     spec:
       containers:
       - name: nginx

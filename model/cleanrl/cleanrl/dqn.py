@@ -15,6 +15,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
+from torch.distributions import Categorical
+from typing import Optional
 
 
 def parse_args():
@@ -94,20 +96,38 @@ def make_env(env_id, seed, idx, capture_video, run_name):
     return thunk
 
 
+
+class EquivariantLayer(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.Gamma = nn.Linear(in_channels, out_channels, bias=False)
+        self.Lambda = nn.Linear(in_channels, out_channels, bias=False)
+    
+    def forward(self, x: torch.Tensor):
+        #pdb.set_trace()
+        gamma_x = self.Gamma(x)
+        xm, _ = torch.max(gamma_x, dim=1, keepdim=False)
+        return self.Lambda(x) - self.Gamma(xm.unsqueeze(1).expand_as(x))
+
+
+
 # ALGO LOGIC: initialize agent here:
 class QNetwork(nn.Module):
     def __init__(self, env):
         super().__init__()
+        self.final_layer = nn.Linear(env.single_action_space.n,  4)
+
         self.network = nn.Sequential(
-            nn.Linear(np.array(env.single_observation_space.shape).prod(), 120),
+            EquivariantLayer( envs.observation_space.shape[1], 120),
             nn.ReLU(),
-            nn.Linear(120, 84),
+            EquivariantLayer(120, 84),
             nn.ReLU(),
-            nn.Linear(84, env.single_action_space.n),
+            EquivariantLayer(84, env.single_action_space.n),
         )
 
     def forward(self, x):
-        return self.network(x)
+        x = self.network(x)
+        return self.final_layer(x)
 
 
 def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
@@ -265,3 +285,5 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     envs.close()
     writer.close()
+
+

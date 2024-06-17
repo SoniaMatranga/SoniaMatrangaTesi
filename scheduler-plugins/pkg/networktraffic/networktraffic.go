@@ -146,10 +146,10 @@ func (n *NetworkTraffic) NormalizeScore(ctx context.Context, state *framework.Cy
 			fmt.Fprintln(conn, "setResourceValues", string(resourceData)) // Send resource values to server
 			klog.Infof("[NetworkTraffic] ResourceValues set.\n")
 
-			/* 			connTest, err := net.Dial("tcp", "localhost:8765")
-			   			fmt.Fprintln(connTest, "getResourceValues") // Request nodes suggestions
-			   			responseTest, err := bufio.NewReader(connTest).ReadString('\n')
-			   			klog.Infof("[NetworkTraffic] SET RESOURCES:\n %s", responseTest) */
+			connTest, err := net.Dial("tcp", "localhost:8765")
+			fmt.Fprintln(connTest, "getResourceValues") // Request nodes suggestions
+			responseTest, err := bufio.NewReader(connTest).ReadString('\n')
+			klog.Infof("[NetworkTraffic] SET RESOURCES:\n %s", responseTest)
 
 			conn, err := net.Dial("tcp", "localhost:8765")
 			fmt.Fprintln(conn, "getSuggestion") // Request nodes suggestions

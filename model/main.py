@@ -7,8 +7,10 @@ from multiprocessing import Manager
 import json
 import time
 import threading
+import socket
+import logging
 
-
+logging.basicConfig(level=logging.INFO)
 
 config.load_kube_config()
 v1 = client.CoreV1Api()
@@ -102,11 +104,19 @@ def get_worker_nodes_internal_ips():
 
         worker_ips = []
         for node in nodes.items:
-            for label in node.metadata.labels:
-                if label.endswith("/worker"):
-                    for address in node.status.addresses:
-                        if address.type == "InternalIP":
-                            worker_ips.append(address.address)
+            is_ready = False
+            for condition in node.status.conditions:
+                if condition.type == "Ready" and condition.status == "True":
+                    is_ready = True
+                    break
+            
+            # Proceed only if the node is ready
+            if is_ready:
+                for label in node.metadata.labels:
+                    if label.endswith("/worker"):
+                        for address in node.status.addresses:
+                            if address.type == "InternalIP":
+                                worker_ips.append(address.address)
 
         print(f"IP ADDRESSES: {worker_ips}")
 
@@ -146,6 +156,7 @@ def get_nodes_state(policy, ips):
                 pods_number = get_nodes_running_pods(ips)
                 cpu_values = get_nodes_cpu_usage(ips)
                 mem_values = get_nodes_mem_usage(ips)
+                pods_len = len(pods_number)
                 """ if len(pods_number) == num_ips and len(cpu_values) == num_ips and len(mem_values) == num_ips:
                     avg_values = np.mean(np.array([pods_number, cpu_values, mem_values]), axis=0)
                     return np.concatenate((avg_values, throughput))
@@ -155,7 +166,7 @@ def get_nodes_state(policy, ips):
                 if len(pods_number) == num_ips and len(cpu_values) == num_ips and len(mem_values) == num_ips :
                     return np.concatenate((pods_number, cpu_values, mem_values))
                 else:
-                    print("Number of returned values is different from number of nodes. Repeat the request.")
+                    print("Number of returned values {pods_len} is different from number of nodes:{num_ips}. Repeat the request.")
                     continue
     else:
         return {"status": "error", "message": f"Unknown policy: {policy}"}
@@ -426,11 +437,22 @@ def handle_request(request):
     
 
 def handle_client(client_socket):
-    request = client_socket.recv(1024).decode("utf-8").strip()
-    response_data = handle_request(request)
-    response_json = json.dumps(response_data)
-    client_socket.send(response_json.encode("utf-8"))
-    client_socket.close()
+
+    try:
+        request = client_socket.recv(1024).decode("utf-8").strip()
+        response_data = handle_request(request)
+        response_json = json.dumps(response_data)
+        client_socket.send(response_json.encode("utf-8"))
+    except json.JSONDecodeError as e:
+        logging.error(f"JSON decoding error: {e}")
+        response_json = json.dumps({"status": "error", "message": "Invalid JSON data."})
+        client_socket.send(response_json.encode("utf-8"))
+    except Exception as e:
+        logging.error(f"Error handling client request: {e}")
+        response_json = json.dumps({"status": "error", "message": str(e)})
+        client_socket.send(response_json.encode("utf-8"))
+    finally:
+        client_socket.close()    
     
 
 
@@ -440,9 +462,10 @@ if __name__ == "__main__":
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind(("localhost", 8765))
         server_socket.listen(55)
-        print("Server is listening on  http://localhost:8765")
+        logging.info("Server is listening on http://localhost:8765")
     except socket.error as e:
-        print(f"something went wrong when starting the server...\n {e}")
+        logging.error(f"Something went wrong when starting the server: {e}")
+        exit(1)
 
     while True:
         client_socket, client_address = server_socket.accept()

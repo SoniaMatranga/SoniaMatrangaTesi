@@ -8,14 +8,17 @@ The reinforcement-learning algorithm used in the plugin dynamically evaluates th
 
 ## Architecture
 
-In the proposed solution, there are four fundamental communication units:
+In the proposed solution, there are five fundamental communication units:
 
 - Plugin: It intercepts the scoring phase and intervenes by requesting scheduling suggestions from the RL model, leveraging the exposed APIs.
 - Suggestions server: It exposes the APIs to obtain scheduling suggestions.
 - RL Model: It utilizes node metrics obtained from Prometheus to suggest on which node the new pod should be scheduled.
 - Prometheus: It exposes various metrics collected on the nodes.
+- Latency app: it runs on each node and evaluate node-user latency on request
 
 ![Architettura](./img/Architettura.jpg)
+
+![Latency](./img/Latency.jpg)
 
 The communication between these elements occurs during the scoring phase, although the plugin can be extended to work on other phases if the extensible APIs are used as indicated [here](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/#interfaces).
 ## Load Balancing suggestion Policies
@@ -26,8 +29,8 @@ The communication between these elements occurs during the scoring phase, althou
       |               |               |
       | ------------- | ------------- |
       |  GOAL  | the agent must choose the node that has the higher resource usage to schedule a new pod  |
-      | OBSERVATION  | provides the actual usage of specific resource from nodes  |
-      | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
+      | OBSERVATION  | provides the actual number of scheduled pods for each node  |
+      | ACTIONS | possible actions are n_nodes actions |
       | REWARD | the ratio between the number of unused machines and the total number of machines, where utilization is (usage of that resource /the maximum resource capacity of resource) |
       | STATE | resources usage |
       |               |               |
@@ -39,8 +42,8 @@ The communication between these elements occurs during the scoring phase, althou
       |               |               |
       | ------------- | ------------- |
       |  GOAL  | the agent must choose the node that has the lower resource usage to schedule a new pod  |
-      | OBSERVATION  | provides the actual usage of specific resource from nodes   |
-      | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
+      | OBSERVATION  | provides the actual number of scheduled pods for each node  |
+      | ACTIONS | possible actions are n_nodes actions |
       | REWARD | The reward function simply providesa constant value of ”1” each time a Pod is successfully scheduled |
       | STATE | resources usage |
       |               |               |
@@ -52,10 +55,23 @@ The communication between these elements occurs during the scoring phase, althou
       |               |               |
       | ------------- | ------------- |
       |  GOAL  | the agent must choose the node that has the fewest active connections to schedule a new pod  |
-      | OBSERVATION  | provides the number of active connections from nodes   |
-      | ACTIONS | possible actions are n_nodes +1 that is dontschedule action |
+      | OBSERVATION  | provides the number of active connections for each node   |
+      | ACTIONS | possible actions are n_nodes actions |
       | REWARD | is 1 minus the ratio (min active connections/ max active connections) so it aims to minimize the difference in the number of active sessions between nodes|
       | STATE | active connections |
+      |               |               |
+
+**Most allocated latency-aware policy** :
+
+   - This policy selects the machine with the lower node-user latency and optimizes energy consumption.
+
+      |               |               |
+      | ------------- | ------------- |
+      |  GOAL  | the agent must choose the node that has lower latency and highest number of scheduled pods to schedule a new pod  |
+      | OBSERVATION  | provides the number of scheduled pods,memory, cpu usage and node-user latency for each node   |
+      | ACTIONS | possible actions are n_nodes actions |
+      | REWARD | it is made by 3 components that are r1 reward member to minimize the number of used nodes, r2 reward member to host pods on min number of nodes and r3 to chose the node with best latency. Values are in the range [0,1] |
+      | STATE | pods, mem, cpu and latency |
       |               |               |
 
 ## Prometheus metics queries
@@ -96,7 +112,7 @@ To test the scheduler, it is needed to follow all the steps outlined below:
    ```
    kind create cluster --name vbeta3 --config kind-config.yaml
    ```
-   It is important to notice that the control node will mount model and venv volumes, where the venv contains all the requirements requested by cleanrl repo.
+   It is important to notice that the control node will mount model and venv volumes, where the venv contains all the requirements requested by cleanrl repo. 
 
 3. **Configure Prometheus with Node Exporter**:
 
@@ -144,8 +160,9 @@ The [nginx-deployment.yaml](nginx-deployment.yaml) can be applyed to the cluster
    ```
 Then, by observing scheduler logs it is possible to analyze the behavoiour when a new pod is scheduled:
    ```
-   kubectl logs -f kube-scheduler-vbeta3-control-plane  -n kube-system | grep "NetworkTraffic
+   kubectl logs -f kube-scheduler-vbeta3-control-plane  -n kube-system 
    ```
+The [deployments.sh](deployments.sh) will create multiple deployments so it is possible to train and test the model by executing it.
 At this point an output like this will appear so that pods are scheduled on the worker node with maximum score.
 
 ![Screenshot](./img/Screenshot.jpg)
@@ -154,6 +171,7 @@ At this point an output like this will appear so that pods are scheduled on the 
 
 Model directory:
 - `model/cleanrl`: contains all files of [cleanrl](https://docs.cleanrl.dev/) that must be mounted on scheduler pod
+- `model/cleanrl/cleanrl/dqn.py`: modified dqn agent that uses DeepSets
 - `model/main.py`: contains functions to expose agent suggestions and to allow communication between venv and prometheus
 - other files used on previous versions 
 
@@ -167,7 +185,6 @@ Scheduler-plugins directory:
 Venv directory:
 - `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/scheduling.py`: definition of the environment used by the DQN agent, which is located in the model. It also starts an app to visualize graphs on the agent.
 - `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/__init__.py`: registers the new custom environment in Gymnasium
-- `venv/lib/python3.9/site-packages/gymnasium/envs/classic_control/graph.py`: manages the creation of graphs to evaluate the agent
 
 Configuration files:
 - `kind-config.yaml`: Initial cluster configuration where Prometheus needs to be added

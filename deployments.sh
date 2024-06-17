@@ -6,7 +6,7 @@ replace_deployment_name() {
 
 for((i=1; i<=500; i++))
     do
-        for ((i=1; i<=50; i++))
+        for ((i=1; i<=30; i++))
         do
             deployment_name="nginx-deployment-$i"
             replace_deployment_name $deployment_name
@@ -18,7 +18,7 @@ for((i=1; i<=500; i++))
         sleep 10
 
 
-        for ((i=1; i<=50; i++))
+        for ((i=1; i<=30; i++))
         do
             deployment_name="nginx-deployment-$i"
             kubectl delete deployment $deployment_name --namespace=default 
