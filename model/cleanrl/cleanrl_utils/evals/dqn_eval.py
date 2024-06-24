@@ -25,11 +25,28 @@ def evaluate(
     obs, _ = envs.reset()
     episodic_returns = []
     while len(episodic_returns) < eval_episodes:
+        action_masks = []
+        for env_idx in range(envs.num_envs):
+            env = envs.envs[env_idx]
+            if hasattr(env, 'action_masks') and callable(getattr(env, 'action_masks')):
+                action_mask = env.action_masks()
+                action_masks.append(action_mask)
+            else:
+                action_masks.append(None) 
+            action_mask = action_masks[0]
+
+        action_mask_matrix = action_mask.reshape(1, -1) 
         if random.random() < epsilon:
-            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            actions = []
+            for env_mask in action_mask_matrix:
+                valid_actions = np.where(env_mask)[0]
+                actions = np.array([np.random.choice(valid_actions) for _ in range(envs.num_envs)])           
+            #actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
         else:
-            q_values = model(torch.Tensor(obs).to(device))
-            actions = torch.argmax(q_values, dim=1).cpu().numpy()
+            #q_values = model(torch.Tensor(obs).to(device))
+            #actions = torch.argmax(q_values, dim=1).cpu().numpy()
+            actions = model.predict(obs, action_mask_matrix) 
+            
         next_obs, _, _, _, infos = envs.step(actions)
         if "final_info" in infos:
             for info in infos["final_info"]:

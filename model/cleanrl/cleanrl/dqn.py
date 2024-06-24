@@ -4,6 +4,7 @@ sys.path.append('/etc/kubernetes/model/cleanrl/')
 
 import gymnasium as gym
 import numpy as np
+import numpy.typing as npt
 import argparse
 import os
 import random
@@ -97,6 +98,7 @@ def make_env(env_id, seed, idx, capture_video, run_name):
 
 
 
+
 class EquivariantLayer(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -108,14 +110,14 @@ class EquivariantLayer(nn.Module):
         gamma_x = self.Gamma(x)
         xm, _ = torch.max(gamma_x, dim=1, keepdim=False)
         return self.Lambda(x) - self.Gamma(xm.unsqueeze(1).expand_as(x))
+    
 
 
-
-# ALGO LOGIC: initialize agent here:
+    
 class QNetwork(nn.Module):
     def __init__(self, env):
         super().__init__()
-        self.final_layer = nn.Linear(env.single_action_space.n,  4)
+        self.final_layer = nn.Linear(env.single_action_space.n,  3)
 
         self.network = nn.Sequential(
             EquivariantLayer( envs.observation_space.shape[1], 120),
@@ -128,6 +130,35 @@ class QNetwork(nn.Module):
     def forward(self, x):
         x = self.network(x)
         return self.final_layer(x)
+
+    def get_value(self, x: torch.Tensor):
+        return self.critic(x)
+
+    def get_action(self, x: torch.Tensor, masks: Optional[torch.Tensor] = None, deterministic: bool = True):
+        logits = self.network(x)
+        if masks is not None:
+            HUGE_NEG = torch.tensor(-1e8, dtype=logits.dtype)
+            if masks.dim() == 1:
+                masks = masks.unsqueeze(0)
+            logits = torch.where(masks, logits, HUGE_NEG)
+        # discrete probability distribution over a set of actions. The logits provide the unnormalized log probabilities for each action.
+        dist = Categorical(logits=logits)
+        # if deterministic is True, return the mode of the Categorical distribution (highest probability, selecting the action with the highest logit value)
+        if deterministic:
+            return dist.mode
+        # if deterministic is False, return a random sample from the Categorical distribution.
+        return dist.sample()
+    
+    def get_feature_size(self):
+        return self.feature_size
+    
+    def predict(self, obs: npt.NDArray, masks: Optional[npt.NDArray] = None) -> npt.NDArray:
+        with torch.no_grad():
+            action = self.get_action(
+                torch.as_tensor(obs, dtype=torch.float32), torch.as_tensor(masks, dtype=torch.bool), deterministic=True
+            ).numpy()
+        return action
+
 
 
 def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
@@ -147,6 +178,10 @@ poetry run pip install "stable_baselines3==2.0.0a1"
         )
     args = parse_args()
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    log_dir = "/etc/kubernetes/model/cleanrl/logs"
+    os.makedirs(log_dir, exist_ok=True)  # Crea la directory se non esiste
+    file_path="/etc/kubernetes/model/cleanrl/logs/logs.txt"
+    reward_path="/etc/kubernetes/model/cleanrl/logs/reward.txt"
     if args.track:
         import wandb
 
@@ -195,67 +230,108 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     # TRY NOT TO MODIFY: start the game
     obs, _ = envs.reset(seed=args.seed)
-    for global_step in range(args.total_timesteps):
-        # ALGO LOGIC: put action logic here
-        epsilon = linear_schedule(args.start_e, args.end_e, args.exploration_fraction * args.total_timesteps, global_step)
-        if random.random() < epsilon:
-            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
-        else:
-            q_values = q_network(torch.Tensor(obs).to(device))
-            actions = torch.argmax(q_values, dim=1).cpu().numpy()
 
-        # TRY NOT TO MODIFY: execute the game and log data.
-        next_obs, rewards, terminations, truncations, infos = envs.step(actions)
 
-        # TRY NOT TO MODIFY: record rewards for plotting purposes
-        if "final_info" in infos:
-            for info in infos["final_info"]:
-                # Skip the envs that are not done
-                if "episode" not in info:
-                    continue
-                print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
-                writer.add_scalar("charts/epsilon", epsilon, global_step)
-                break
+    
+    try:
 
-        # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
-        real_next_obs = next_obs.copy()
-        for idx, trunc in enumerate(truncations):
-            if trunc:
-                real_next_obs[idx] = infos["final_observation"][idx]
-        rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
+        for global_step in range(args.total_timesteps):
+            # ALGO LOGIC: put action logic here
+            action_masks = []
+            for env_idx in range(envs.num_envs):
+                env = envs.envs[env_idx]
+                if hasattr(env, 'action_masks') and callable(getattr(env, 'action_masks')):
+                    action_mask = env.action_masks()
+                    action_masks.append(action_mask)
+                else:
+                    action_masks.append(None) 
+                action_mask = action_masks[0]
 
-        # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
-        obs = next_obs
+            epsilon = linear_schedule(args.start_e, args.end_e, args.exploration_fraction * args.total_timesteps, global_step)
 
-        # ALGO LOGIC: training.
-        if global_step > args.learning_starts:
-            if global_step % args.train_frequency == 0:
-                data = rb.sample(args.batch_size)
-                with torch.no_grad():
-                    target_max, _ = target_network(data.next_observations).max(dim=1)
-                    td_target = data.rewards.flatten() + args.gamma * target_max * (1 - data.dones.flatten())
-                old_val = q_network(data.observations).gather(1, data.actions).squeeze()
-                loss = F.mse_loss(td_target, old_val)
+            if random.random() < epsilon:
+                actions = []
+                action_mask_matrix = action_mask.reshape(1, -1)           
+                
+                #actions = q_network.predict(obs, action_mask_matrix) 
 
-                if global_step % 100 == 0:
-                    writer.add_scalar("losses/td_loss", loss, global_step)
-                    writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
-                    print("SPS:", int(global_step / (time.time() - start_time)))
-                    writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                for env_mask in action_mask_matrix:
+                    valid_actions = np.where(env_mask)[0]
+                    actions = np.array([np.random.choice(valid_actions) for _ in range(envs.num_envs)])
+                
+                #actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            else:
+                q_values = q_network(torch.Tensor(obs).to(device))
+                HUGE_NEGATIVE = -1e8
+                action_masks_tensor = torch.tensor(action_mask_matrix, dtype=torch.bool).to(device)
+                q_values = torch.where(action_masks_tensor, q_values, HUGE_NEGATIVE)
+                actions = torch.argmax(q_values, dim=1).cpu().numpy()
 
-                # optimize the model
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+            with open(file_path, 'a') as f:
+                f.write(f"ACTIONS MASK MATRIX: {action_mask_matrix}, ACTIONS ==== {actions}, OBS ======= {obs}\n")
 
-            # update target network
-            if global_step % args.target_network_frequency == 0:
-                for target_network_param, q_network_param in zip(target_network.parameters(), q_network.parameters()):
-                    target_network_param.data.copy_(
-                        args.tau * q_network_param.data + (1.0 - args.tau) * target_network_param.data
-                    )
+            # TRY NOT TO MODIFY: execute the game and log data.
+            next_obs, rewards, terminations, truncations, infos = envs.step(actions)
+
+        
+            # TRY NOT TO MODIFY: record rewards for plotting purposes
+            if "final_info" in infos:
+                for info in infos["final_info"]:
+                    # Skip the envs that are not done
+                    if "episode" not in info:
+                        continue
+                    print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
+                    writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
+                    writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                    writer.add_scalar("charts/epsilon", epsilon, global_step)
+                    with open(reward_path, 'a') as f:
+                        f.write(f"{global_step}, {info['episode']['r']}, {info['episode']['l']},\n")
+                    break
+
+            # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
+            real_next_obs = next_obs.copy()
+            for idx, trunc in enumerate(truncations):
+                if trunc:
+                    real_next_obs[idx] = infos["final_observation"][idx]
+            rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
+
+            # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
+            obs = next_obs
+
+            # ALGO LOGIC: training.
+            if global_step > args.learning_starts:
+                if global_step % args.train_frequency == 0:
+                    data = rb.sample(args.batch_size)
+                    with torch.no_grad():
+                        target_max, _ = target_network(data.next_observations).max(dim=1)
+                        td_target = data.rewards.flatten() + args.gamma * target_max * (1 - data.dones.flatten())
+                    old_val = q_network(data.observations).gather(1, data.actions).squeeze()
+                    loss = F.mse_loss(td_target, old_val)
+
+                    if global_step % 100 == 0:
+                        writer.add_scalar("losses/td_loss", loss, global_step)
+                        writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
+                        print("SPS:", int(global_step / (time.time() - start_time)))
+                        writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+
+                    # optimize the model
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+                # update target network
+                if global_step % args.target_network_frequency == 0:
+                    for target_network_param, q_network_param in zip(target_network.parameters(), q_network.parameters()):
+                        target_network_param.data.copy_(
+                            args.tau * q_network_param.data + (1.0 - args.tau) * target_network_param.data
+                        )
+    except Exception as e:
+        with open(file_path, 'a') as f:
+                f.write(f"An error occurred in step {global_step}: {e}\n")
+
+    finally:
+        with open(file_path, 'a') as f:
+                f.write(f"\n")
 
     if args.save_model:
         model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"

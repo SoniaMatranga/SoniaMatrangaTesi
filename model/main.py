@@ -130,44 +130,28 @@ def get_worker_nodes_internal_ips():
 
 def get_nodes_state(policy, ips): 
     num_ips = len(ips)
-    if policy == "LA" or policy == "MA":   
-        """ while True:
-                pods_number = get_nodes_running_pods(ips)
-                cpu_values = get_nodes_cpu_usage(ips)
-                mem_values = get_nodes_mem_usage(ips)
-                net_values = get_nodes_network_usage(ips)
-                #disk_values = get_nodes_disk_usage(ips)
-                
-                if len(pods_number) == num_ips and len(cpu_values) == num_ips and len(mem_values) == num_ips and len(net_values) == num_ips:
-                    avg_values = np.mean(np.array([pods_number, cpu_values, mem_values, net_values]), axis=0)
-                    return avg_values
-                else:
-                    print("Number of returned values is different from number of nodes. Repeat the request.")
-                    continue  """
+    if policy == "LA" or policy == "MA":           
         while True:
-            cpu_values = get_nodes_running_pods(ips)
-            if len(cpu_values) == num_ips:
-                return cpu_values
+            pods_number = get_nodes_running_pods(ips)
+            if len(pods_number) < 3:
+                pods_number = np.pad(pods_number, (0, 3 - len(pods_number)), mode='constant', constant_values=-1)
+            return pods_number
             
-    elif policy == "LC": #least connections policy
-        return get_nodes_network_connections(ips)
+    elif policy == "LC": 
+            connections = get_nodes_network_connections(ips)
+            if len(connections) < 3:
+                connections = np.pad(connections, (0, 3 - len(connections)), mode='constant', constant_values=-1)
+            return connections
     elif policy == "P0":
         while True:
                 pods_number = get_nodes_running_pods(ips)
                 cpu_values = get_nodes_cpu_usage(ips)
                 mem_values = get_nodes_mem_usage(ips)
-                pods_len = len(pods_number)
-                """ if len(pods_number) == num_ips and len(cpu_values) == num_ips and len(mem_values) == num_ips:
-                    avg_values = np.mean(np.array([pods_number, cpu_values, mem_values]), axis=0)
-                    return np.concatenate((avg_values, throughput))
-                else:
-                    print("Number of returned values is different from number of nodes. Repeat the request.")
-                    continue """
-                if len(pods_number) == num_ips and len(cpu_values) == num_ips and len(mem_values) == num_ips :
-                    return np.concatenate((pods_number, cpu_values, mem_values))
-                else:
-                    print("Number of returned values {pods_len} is different from number of nodes:{num_ips}. Repeat the request.")
-                    continue
+                result = np.concatenate((pods_number, cpu_values, mem_values))
+                if len(result) < 9:
+                    result = np.pad(result, (0, 9 - len(result)), mode='constant', constant_values=-1)
+                return result
+              
     else:
         return {"status": "error", "message": f"Unknown policy: {policy}"}
         
@@ -270,8 +254,10 @@ def get_nodes_disk_usage(ips):
 #####################################  PODS METRICS  ################################################
 
 def get_pods_prometheus(internal_ip):
+    node_name = get_node_name_from_ip(internal_ip)
     prometheus_url = "http://10.96.105.208:9090/api/v1/query"
-    prometheus_query = f'kubelet_running_pods{{instance="{internal_ip}:10250"}}' #Results are in the shape [metadata, number of pods]
+    #prometheus_query = f'kubelet_running_pods{{instance="{internal_ip}:10250"}}' #Results are in the shape [metadata, number of pods]
+    prometheus_query = f'count(kube_pod_info{{node="{node_name}", namespace="default"}}) or vector(0)'
 
     try:
         response = requests.get(prometheus_url, params={'query': prometheus_query})
@@ -297,6 +283,24 @@ def get_nodes_running_pods(ips):
                         metrics.append(float(value_list[1]))
 
     return metrics
+
+def get_node_name_from_ip(internal_ip):
+    try:
+        config.load_kube_config()
+        v1 = client.CoreV1Api()
+        nodes = v1.list_node()
+
+        for node in nodes.items:
+            for address in node.status.addresses:
+                if address.type == "InternalIP" and address.address == internal_ip:
+                    return node.metadata.name
+        
+        # Return None if no matching node found
+        return None
+
+    except Exception as e:
+        print(f"Error while retrieving node name from internal IP {internal_ip}: {str(e)}")
+        return None
 
 #####################################  LATENCY METRICS  ################################################
 

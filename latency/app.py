@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    user_ip = "172.29.29.39"  # Ottieni l'IP dell'utente esterno
+    user_ip = "127.0.0.1"
     num_pings = 50
     rtt_values = []
     for _ in range(num_pings):
@@ -22,7 +22,7 @@ def index():
             rtt_values.append(rtt)
 
     if rtt_values:
-        avg_rtt = sum(rtt_values) / len(rtt_values) 
+        avg_rtt = sum(rtt_values) / len(rtt_values) + 0.500
         return f'{avg_rtt * 1000:.2f}'
     else:
         return 'Failed to ping user\n'
